@@ -1,4 +1,4 @@
-﻿using Aether.Interop;
+﻿using Aether.Devices.Interop;
 using System.Runtime.InteropServices;
 
 namespace Aether.Devices.I2C.Linux

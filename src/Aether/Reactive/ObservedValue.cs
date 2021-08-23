@@ -1,24 +1,23 @@
 ﻿using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
-namespace Aether
+namespace Aether.Reactive
 {
-    internal sealed class ObservedValue<T> : IObserver<T>, IDisposable
+    /// <summary>
+    /// Observes an <see cref="IObservable{T}"/>, exposing its latest value.
+    /// </summary>
+    /// <typeparam name="T">The type of value to observe.</typeparam>
+    internal sealed class ObservedValue<T> : IObserver<T>
     {
-        private readonly object _sync = new object();
-        private readonly IDisposable _subscription;
-        private Status _status;
-        private T? _value;
+        private readonly object _sync = new();
         private Exception? _exception;
+        private T? _value;
+        private Status _status;
 
-        public ObservedValue(IObservable<T> observable)
-        {
-            _subscription = observable.Subscribe(this);
-        }
-
-        public void Dispose() =>
-            _subscription.Dispose();
-
+        /// <summary>
+        /// Gets the latest value published by the <see cref="IObserver{T}"/>, if any.
+        /// </summary>
+        /// <returns>If a value was retrieved, <see langword="true"/>. Otherwise, <see langword="false"/>.</returns>
         public bool TryGetValue([MaybeNullWhen(false)] out T value)
         {
             lock (_sync)
@@ -44,6 +43,10 @@ namespace Aether
             }
         }
 
+        /// <summary>
+        /// Gets the latest value published by the <see cref="IObserver{T}"/>, if it hasn't already been retrieved.
+        /// </summary>
+        /// <returns>If a value was retrieved, <see langword="true"/>. Otherwise, <see langword="false"/>.</returns>
         public bool TryGetValueIfChanged([MaybeNullWhen(false)] out T value)
         {
             lock (_sync)

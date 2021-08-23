@@ -1,4 +1,4 @@
-﻿namespace Aether.Devices
+﻿namespace Aether
 {
     internal readonly struct Measurement
     {

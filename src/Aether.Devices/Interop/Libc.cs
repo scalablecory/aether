@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace Aether.Interop
+namespace Aether.Devices.Interop
 {
     internal static unsafe class Libc
     {
@@ -80,12 +80,6 @@ namespace Aether.Interop
             public ushort flags;
             public ushort len;
             public void* buf;
-        }
-
-        public struct i2c_msg2
-        {
-            public i2c_msg write;
-            public i2c_msg read;
         }
 
         public unsafe struct i2c_rdwr_ioctl_data

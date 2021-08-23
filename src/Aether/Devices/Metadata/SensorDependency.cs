@@ -1,4 +1,4 @@
-﻿namespace Aether.Devices
+﻿namespace Aether.Devices.Metadata
 {
     internal sealed class SensorDependency
     {

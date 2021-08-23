@@ -1,4 +1,5 @@
-﻿using Aether.Interop;
+﻿using Aether.Devices.Interop;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -10,60 +11,68 @@ namespace Aether.Devices.I2C.Linux
     /// </summary>
     internal sealed class LinuxI2CDevice : I2CDevice
     {
-        private readonly LinuxI2CBus _bus;
+        private readonly SemaphoreSlim _sem;
         private readonly FileDescriptorSafeHandle _fd;
         private readonly ushort _addr;
+        private readonly ulong _funcs;
+        private readonly byte[] _nullTerminatedFilePath;
 
-        public unsafe LinuxI2CDevice(LinuxI2CBus bus, string filePath, int deviceAddress)
+        public unsafe LinuxI2CDevice(byte[] nullTerminatedFilePath, int deviceAddress, SemaphoreSlim busLock)
         {
-            int len = Encoding.UTF8.GetByteCount(filePath) + 1;
-
-            byte[] utf8FilePath = new byte[len + 1];
-
-            len = Encoding.UTF8.GetBytes(filePath, utf8FilePath);
-            utf8FilePath[len] = 0;
+            Debug.Assert(nullTerminatedFilePath[^1] == 0, $"{nameof(nullTerminatedFilePath)} must be null-terminated.");
 
             int fd;
 
-            fixed (byte* utf8FilePathPointer = utf8FilePath)
+            fixed (byte* utf8FilePathPointer = nullTerminatedFilePath)
             {
                 fd = Libc.open(utf8FilePathPointer, Libc.O_RDWR);
             }
 
             CheckError(nameof(Libc.open), fd);
 
-            _bus = bus;
+            _nullTerminatedFilePath = nullTerminatedFilePath;
+            _sem = busLock;
             _fd = new FileDescriptorSafeHandle(fd);
             _addr = (ushort)deviceAddress;
 
             SetDeviceAddress(deviceAddress);
+            _funcs = GetSupportedFuncs();
         }
 
-        public override void Dispose()
-        {
+        public override void Dispose() =>
             _fd.Dispose();
-        }
 
-        private unsafe void SetDeviceAddress(int deviceAddress)
+        public override string ToString() =>
+            $"{{ \"{Encoding.UTF8.GetString(_nullTerminatedFilePath.AsSpan(0, _nullTerminatedFilePath.Length - 1))}\" , 0x{_addr:X} }}";
+
+        private unsafe void SetDeviceAddress(long deviceAddress)
         {
-            long addr = deviceAddress;
-
-            int err = Libc.ioctl(_fd.FileDescriptor, Libc.I2C_SLAVE, &addr);
+            int err = Libc.ioctl(_fd.FileDescriptor, Libc.I2C_SLAVE, &deviceAddress);
             CheckError(nameof(Libc.ioctl), err);
         }
 
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> writeBuffer, CancellationToken cancellationToken)
+        private unsafe ulong GetSupportedFuncs()
+        {
+            Unsafe.SkipInit(out ulong funcs);
+
+            int err = Libc.ioctl(_fd.FileDescriptor, Libc.I2C_FUNCS, &funcs);
+            CheckError(nameof(Libc.ioctl), err);
+
+            return funcs;
+        }
+
+        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> writeBuffer, CancellationToken cancellationToken = default)
         {
             if (writeBuffer.Length == 0) throw new ArgumentException($"{nameof(writeBuffer)} must have a non-zero length.", nameof(writeBuffer));
 
-            await _bus.LockAsync(cancellationToken).ConfigureAwait(false);
+            await _sem.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 Write(writeBuffer.Span);
             }
             finally
             {
-                _bus.Unlock();
+                _sem.Release();
             }
         }
 
@@ -84,18 +93,18 @@ namespace Aether.Devices.I2C.Linux
             }
         }
 
-        public override async ValueTask ReadAsync(Memory<byte> readBuffer, CancellationToken cancellationToken)
+        public override async ValueTask ReadAsync(Memory<byte> readBuffer, CancellationToken cancellationToken = default)
         {
             if (readBuffer.Length == 0) throw new ArgumentException($"{nameof(readBuffer)} must have a non-zero length.", nameof(readBuffer));
 
-            await _bus.LockAsync(cancellationToken).ConfigureAwait(false);
+            await _sem.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 Read(readBuffer.Span);
             }
             finally
             {
-                _bus.Unlock();
+                _sem.Release();
             }
         }
 
@@ -116,29 +125,39 @@ namespace Aether.Devices.I2C.Linux
             }
         }
 
-        public override async ValueTask WriteAndReadAsync(ReadOnlyMemory<byte> writeBuffer, Memory<byte> readBuffer, CancellationToken cancellationToken)
+        public override async ValueTask WriteAndReadAsync(ReadOnlyMemory<byte> writeBuffer, Memory<byte> readBuffer, CancellationToken cancellationToken = default)
         {
             if (writeBuffer.Length > ushort.MaxValue) throw new ArgumentException($"{nameof(writeBuffer)} must be at most {ushort.MaxValue} bytes in length.", nameof(writeBuffer));
             if (readBuffer.Length > ushort.MaxValue) throw new ArgumentException($"{nameof(readBuffer)} must be at most {ushort.MaxValue} bytes in length.", nameof(readBuffer));
             if (writeBuffer.Length == 0 && readBuffer.Length == 0) throw new ArgumentException($"One of {nameof(writeBuffer)} or {nameof(readBuffer)} must have a non-zero length.");
 
-            await _bus.LockAsync(cancellationToken).ConfigureAwait(false);
+            await _sem.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                WriteAndRead(writeBuffer.Span, readBuffer.Span);
+                if ((_funcs & Libc.I2C_FUNC_I2C) != 0)
+                {
+                    WriteAndRead(writeBuffer.Span, readBuffer.Span);
+                }
+                else
+                {
+                    Write(writeBuffer.Span);
+                    Read(readBuffer.Span);
+                }
             }
             finally
             {
-                _bus.Unlock();
+                _sem.Release();
             }
         }
 
         private unsafe void WriteAndRead(ReadOnlySpan<byte> writeBuffer, Span<byte> readBuffer)
         {
+            int err;
+
             fixed (byte* pWriteBuffer = writeBuffer)
             fixed (byte* pReadBuffer = readBuffer)
             {
-                Unsafe.SkipInit(out Libc.i2c_msg2 msg);
+                Unsafe.SkipInit(out i2c_msg2 msg);
                 uint msgLen = 0;
 
                 Libc.i2c_msg* firstMsg = &msg.read;
@@ -146,7 +165,7 @@ namespace Aether.Devices.I2C.Linux
                 if (readBuffer.Length != 0)
                 {
                     msg.read.addr = _addr;
-                    msg.read.flags = Libc.I2C_M_RD | Libc.I2C_M_RECV_LEN;
+                    msg.read.flags = Libc.I2C_M_RD;
                     msg.read.len = (ushort)readBuffer.Length;
                     msg.read.buf = pReadBuffer;
 
@@ -171,9 +190,10 @@ namespace Aether.Devices.I2C.Linux
                     nmsgs = msgLen
                 };
 
-                int err = Libc.ioctl(_fd.FileDescriptor, Libc.I2C_RDWR, &ioctl);
-                CheckError(nameof(Libc.ioctl), err);
+                err = Libc.ioctl(_fd.FileDescriptor, Libc.I2C_RDWR, &ioctl);
             }
+
+            CheckError(nameof(Libc.ioctl), err);
         }
 
         private static void CheckError(string func, nint err)
@@ -189,6 +209,12 @@ namespace Aether.Devices.I2C.Linux
                 int err = Marshal.GetLastWin32Error();
                 throw new Exception($"Function {@func} failed; errno {err}.");
             }
+        }
+
+        private struct i2c_msg2
+        {
+            public Libc.i2c_msg write;
+            public Libc.i2c_msg read;
         }
     }
 }
