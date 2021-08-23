@@ -16,9 +16,11 @@ This project is a WIP. Contributions welcome -- file issues or [contact me](http
 
 ## Hardware Support (Planned)
 
+Initial support will use specific high-quality hardware.
+
 - [Raspberry Pi](https://www.raspberrypi.org/)
 - [Waveshare 2.9" E-ink display](https://www.waveshare.com/product/displays/e-paper/epaper-2/2.9inch-e-paper-module.htm)
-- [Sensirion SCD4x](https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors/carbon-dioxide-sensor-scd4x/) - CO<sup>2</sup>, temperature, relative humidity
+- [Sensirion SCD4x](https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors/carbon-dioxide-sensor-scd4x/) - CO<sub>2</sub>, temperature, relative humidity
 - [Sensirion SHT4x](https://www.sensirion.com/en/environmental-sensors/humidity-sensors/humidity-sensor-sht4x/) - temperature, relative humidity
 - [Sensirion SPS30](https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/) - PM<sub>0.5</sub>, PM<sub>1.0</sub>, PM<sub>2.5</sub>, PM<sub>4</sub>, PM<sub>10</sub>
 - [TE MS5637](https://www.te.com/commerce/DocumentDelivery/DDEController?Action=srchrtrv&DocNm=MS5637-02BA03&DocType=Data+Sheet&DocLang=English) - barometric pressure
