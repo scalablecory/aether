@@ -1,4 +1,4 @@
-﻿namespace Aether.Devices.Metadata
+﻿namespace Aether.Devices.Sensors.Metadata
 {
     internal sealed class SensorParameter
     {
