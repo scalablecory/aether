@@ -1,6 +1,6 @@
 ﻿using Aether.Devices.I2C;
-using System.Buffers;
 using System.Buffers.Binary;
+using System.Diagnostics;
 
 namespace Aether.Devices.Sensors
 {
@@ -11,6 +11,7 @@ namespace Aether.Devices.Sensors
     {
         private readonly I2CDevice _device;
         private readonly SemaphoreSlim _sem = new(initialCount: 1);
+        private readonly byte[] _buffer = new byte[6];
 
         /// <summary>
         /// Instantiates a new <see cref="SHT4x"/>.
@@ -35,32 +36,33 @@ namespace Aether.Devices.Sensors
         /// <returns>A tuple of humidity and temperature.</returns>
         public async ValueTask<(float humidity, float temperature)> ReadHighlyRepeatableMeasurementAsync(CancellationToken cancellationToken = default)
         {
-            byte[] buffer = ArrayPool<byte>.Shared.Rent(6);
-            buffer[0] = 0xFD;
+            float humidity;
+            float temperature;
 
             await _sem.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                _buffer[0] = 0xFD;
+
                 // Start the measurement read.
-                await _device.WriteAsync(buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
+                await _device.WriteAsync(_buffer.AsMemory(0, 1), cancellationToken).ConfigureAwait(false);
 
                 // A high repeatability read takes 8.2ms to complete.
                 // TODO: detect a NACKed address byte and delay even more.
                 await Task.Delay(9, cancellationToken).ConfigureAwait(false);
 
                 // Finish the read.
-                await _device.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+                Debug.Assert(_buffer.Length == 6);
+                await _device.ReadAsync(_buffer, cancellationToken).ConfigureAwait(false);
+
+                _ = _buffer[5];
+                humidity = (float)Math.Clamp(ReadUInt16(_buffer.AsSpan(0, 2), _buffer[2]) * (1.0 / 52428.0) - (3.0 / 50.0), 0.0, 1.0);
+                temperature = (float)(ReadUInt16(_buffer.AsSpan(2, 2), _buffer[5]) * (35.0 / 13107.0) - 45.0);
             }
             finally
             {
                 _sem.Release();
             }
-
-            _ = buffer[5];
-            float humidity = (float)Math.Clamp(ReadUInt16(buffer.AsSpan(0, 2), buffer[2]) * (1.0 / 52428.0) - (3.0 / 50.0), 0.0, 1.0);
-            float temperature = (float)(ReadUInt16(buffer.AsSpan(2, 2), buffer[5]) * (35.0 / 13107.0) - 45.0);
-
-            ArrayPool<byte>.Shared.Return(buffer);
 
             return (humidity, temperature);
         }

@@ -11,7 +11,7 @@ namespace Aether.Devices.I2C.Linux
     /// </summary>
     internal sealed class LinuxI2CDevice : I2CDevice
     {
-        private readonly SemaphoreSlim _sem;
+        private readonly SemaphoreSlim _busLock;
         private readonly FileDescriptorSafeHandle _fd;
         private readonly ushort _addr;
         private readonly ulong _funcs;
@@ -31,7 +31,7 @@ namespace Aether.Devices.I2C.Linux
             CheckError(nameof(Libc.open), fd);
 
             _nullTerminatedFilePath = nullTerminatedFilePath;
-            _sem = busLock;
+            _busLock = busLock;
             _fd = new FileDescriptorSafeHandle(fd);
             _addr = (ushort)deviceAddress;
 
@@ -65,14 +65,14 @@ namespace Aether.Devices.I2C.Linux
         {
             if (writeBuffer.Length == 0) throw new ArgumentException($"{nameof(writeBuffer)} must have a non-zero length.", nameof(writeBuffer));
 
-            await _sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await _busLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 Write(writeBuffer.Span);
             }
             finally
             {
-                _sem.Release();
+                _busLock.Release();
             }
         }
 
@@ -97,14 +97,14 @@ namespace Aether.Devices.I2C.Linux
         {
             if (readBuffer.Length == 0) throw new ArgumentException($"{nameof(readBuffer)} must have a non-zero length.", nameof(readBuffer));
 
-            await _sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await _busLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 Read(readBuffer.Span);
             }
             finally
             {
-                _sem.Release();
+                _busLock.Release();
             }
         }
 
@@ -131,7 +131,7 @@ namespace Aether.Devices.I2C.Linux
             if (readBuffer.Length > ushort.MaxValue) throw new ArgumentException($"{nameof(readBuffer)} must be at most {ushort.MaxValue} bytes in length.", nameof(readBuffer));
             if (writeBuffer.Length == 0 && readBuffer.Length == 0) throw new ArgumentException($"One of {nameof(writeBuffer)} or {nameof(readBuffer)} must have a non-zero length.");
 
-            await _sem.WaitAsync(cancellationToken).ConfigureAwait(false);
+            await _busLock.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
                 if ((_funcs & Libc.I2C_FUNC_I2C) != 0)
@@ -146,7 +146,7 @@ namespace Aether.Devices.I2C.Linux
             }
             finally
             {
-                _sem.Release();
+                _busLock.Release();
             }
         }
 

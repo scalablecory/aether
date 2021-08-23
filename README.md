@@ -16,7 +16,7 @@ This project is a WIP. Contributions welcome -- file issues or [contact me](http
 
 ## Hardware Support (Planned)
 
-Initial support will use specific high-quality hardware.
+Initial support will use specific high-quality hardware. In the future, lower cost options will be supported.
 
 - [Raspberry Pi](https://www.raspberrypi.org/)
 - [Waveshare 2.9" E-ink display](https://www.waveshare.com/product/displays/e-paper/epaper-2/2.9inch-e-paper-module.htm)
@@ -27,4 +27,4 @@ Initial support will use specific high-quality hardware.
 
 # License
 
-Aether is ©2021 Cory Nelson, under the [GPL version 3](https://www.gnu.org/licenses/gpl-3.0.en.html) or any later version.
+Aether is licensed under the [GPL version 3](https://www.gnu.org/licenses/gpl-3.0.en.html) or any later version.
