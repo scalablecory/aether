@@ -72,7 +72,7 @@ namespace Aether.Reactive
             }
         }
 
-        void IObserver<T>.OnCompleted()
+        public void OnCompleted()
         {
             lock (_sync)
             {
@@ -80,7 +80,7 @@ namespace Aether.Reactive
             }
         }
 
-        void IObserver<T>.OnError(Exception error)
+        public void OnError(Exception error)
         {
             lock (_sync)
             {
@@ -89,7 +89,7 @@ namespace Aether.Reactive
             }
         }
 
-        void IObserver<T>.OnNext(T value)
+        public void OnNext(T value)
         {
             lock (_sync)
             {

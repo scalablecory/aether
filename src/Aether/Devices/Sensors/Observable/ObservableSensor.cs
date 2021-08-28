@@ -3,6 +3,9 @@ using System.Reactive.Subjects;
 
 namespace Aether.Devices.Sensors.Observable
 {
+    /// <summary>
+    /// A sensor which takes periodic measurements and can run commands.
+    /// </summary>
     internal abstract class ObservableSensor : IObservable<Measurement>, IAsyncDisposable
     {
         private readonly Subject<Measurement> _subject = new();
@@ -10,8 +13,6 @@ namespace Aether.Devices.Sensors.Observable
         private Task? _task;
 
         private object Sync => _cts;
-
-        public virtual bool CanCalibrate => false;
 
         public async ValueTask DisposeAsync()
         {            
@@ -52,7 +53,7 @@ namespace Aether.Devices.Sensors.Observable
         /// </summary>
         /// <param name="measure">The type of measure being reported.</param>
         /// <param name="value">The value of the measure being reported.</param>
-        protected void OnNext(Measure measure, float value) =>
+        protected void OnNext(Measure measure, UnitsNet.IQuantity value) =>
             _subject.OnNext(new Measurement(measure, value));
 
         private async Task RunProcessLoopAsync()

@@ -1,11 +1,13 @@
-﻿namespace Aether.Devices.Sensors
+﻿using UnitsNet;
+
+namespace Aether.Devices.Sensors
 {
     internal readonly struct Measurement
     {
         public Measure Measure { get; }
-        public float Value { get; }
+        public IQuantity Value { get; }
 
-        public Measurement(Measure measure, float value)
+        public Measurement(Measure measure, IQuantity value)
         {
             Measure = measure;
             Value = value;

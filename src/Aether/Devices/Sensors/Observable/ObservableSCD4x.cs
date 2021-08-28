@@ -1,14 +1,66 @@
-﻿using Aether.Devices.I2C;
-using Aether.Devices.Sensors.Metadata;
+﻿using Aether.Devices.Sensors.Metadata;
 using Aether.Reactive;
+using System.Device.I2c;
 using System.Reactive.Linq;
+using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
     internal class ObservableSCD4x : ObservableSensor, IObservableI2CSensorFactory
     {
-        private readonly SCD4x _sensor;
+        private readonly Drivers.SCD4x _sensor;
         private readonly IObservable<Measurement> _dependencies;
+
+        private ObservableSCD4x(I2cDevice device, IObservable<Measurement> dependencies)
+        {
+            _sensor = new Drivers.SCD4x(device);
+            _dependencies = dependencies;
+        }
+
+        protected override void DisposeCore() =>
+            _sensor.Dispose();
+
+        protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5_000));
+            using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
+
+            var pressureObserver = new ObservedValue<Pressure>();
+            using IDisposable subscription = _dependencies
+                .Where(static measurement => measurement.Measure == Measure.Pressure)
+                .Select(static measurement => (Pressure)measurement.Value)
+                .Subscribe(pressureObserver);
+
+            _sensor.StartPeriodicMeasurements();
+            try
+            {
+                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
+                {
+                    while (!_sensor.CheckPeriodicMeasurementAvailable())
+                    {
+                        await Task.Delay(500).ConfigureAwait(false);
+                    }
+
+                    (VolumeConcentration co2, RelativeHumidity humidity, Temperature temperature) =
+                        _sensor.ReadPeriodicMeasurement();
+
+                    OnNext(Measure.CO2, co2);
+                    OnNext(Measure.Humidity, humidity);
+                    OnNext(Measure.Temperature, temperature);
+
+                    if (pressureObserver.TryGetValueIfChanged(out Pressure pressure))
+                    {
+                        _sensor.SetPressureCalibration(pressure);
+                    }
+                }
+            }
+            finally
+            {
+                _sensor.StopPeriodicMeasurements();
+            }
+        }
+
+        #region IObservableI2CSensorFactory
 
         public static int DefaultAddress => 0x62;
 
@@ -30,52 +82,9 @@ namespace Aether.Devices.Sensors.Observable
         // TODO: self-calibration command.
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenDevice(I2CDevice device, IObservable<Measurement> dependencies) =>
+        public static ObservableSensor OpenDevice(I2cDevice device, IObservable<Measurement> dependencies) =>
             new ObservableSCD4x(device, dependencies);
 
-        private ObservableSCD4x(I2C.I2CDevice device, IObservable<Measurement> dependencies)
-        {
-            _sensor = new SCD4x(device);
-            _dependencies = dependencies;
-        }
-
-        protected override void DisposeCore() =>
-            _sensor.Dispose();
-
-        protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
-        {
-            await _sensor.StartPeriodicMeasurementsAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5_000));
-                using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
-
-                var pressureObserver = new ObservedValue<float>();
-                using IDisposable subscription = _dependencies
-                    .Where(static measurement => measurement.Measure == Measure.Pressure)
-                    .Select(static measurement => measurement.Value)
-                    .Subscribe(pressureObserver);
-
-                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
-                {
-                    (float co2, float humidity, float temperature) =
-                        await _sensor.ReadPeriodicMeasurementAsync(cancellationToken).ConfigureAwait(false);
-
-                    OnNext(Measure.CO2, co2);
-                    OnNext(Measure.Humidity, humidity);
-                    OnNext(Measure.Temperature, temperature);
-
-                    if (pressureObserver.TryGetValueIfChanged(out float pressure))
-                    {
-                        await _sensor.SetPressureCalibrationAsync(pressure, cancellationToken).ConfigureAwait(false);
-                    }
-                }
-            }
-            finally
-            {
-                // Intentionally not observing a cancellation token here, to ensure measurement stops.
-                await _sensor.StopPeriodicMeasurementsAsync().ConfigureAwait(false);
-            }
-        }
+        #endregion
     }
 }

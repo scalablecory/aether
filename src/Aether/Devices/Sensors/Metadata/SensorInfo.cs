@@ -1,5 +1,5 @@
-﻿using Aether.Devices.I2C;
-using Aether.Devices.Sensors.Observable;
+﻿using Aether.Devices.Sensors.Observable;
+using System.Device.I2c;
 
 namespace Aether.Devices.Sensors.Metadata
 {
@@ -10,7 +10,7 @@ namespace Aether.Devices.Sensors.Metadata
     internal abstract class SensorInfo
     {
         /// <summary>
-        /// A collection of all factories supported by Aether.
+        /// A collection of all sensors supported by Aether.
         /// </summary>
         public static IReadOnlyList<SensorInfo> Sensors { get; } = new List<SensorInfo>
         {
@@ -28,6 +28,8 @@ namespace Aether.Devices.Sensors.Metadata
         private class ConcreteI2CSensorInfo<T> : I2CSensorInfo
             where T : IObservableI2CSensorFactory
         {
+            public Type FactoryType => typeof(T);
+
             public override int DefaultAddress => T.DefaultAddress;
 
             public override string Manufacturer => T.Manufacturer;
@@ -38,7 +40,7 @@ namespace Aether.Devices.Sensors.Metadata
 
             public override IEnumerable<MeasureInfo> Measures => T.Measures;
 
-            public override ObservableSensor OpenDevice(I2CDevice device, IObservable<Measurement> dependencies) =>
+            public override ObservableSensor OpenDevice(I2cDevice device, IObservable<Measurement> dependencies) =>
                 T.OpenDevice(device, dependencies);
         }
     }

@@ -1,10 +1,11 @@
 ﻿using Aether.Devices.Sensors.Observable;
+using System.Device.I2c;
 
 namespace Aether.Devices.Sensors.Metadata
 {
-    abstract class I2CSensorInfo : SensorInfo
+    internal abstract class I2CSensorInfo : SensorInfo
     {
         public abstract int DefaultAddress { get; }
-        public abstract ObservableSensor OpenDevice(I2C.I2CDevice device, IObservable<Measurement> dependencies);
+        public abstract ObservableSensor OpenDevice(I2cDevice device, IObservable<Measurement> dependencies);
     }
 }
