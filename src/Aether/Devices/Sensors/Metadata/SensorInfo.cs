@@ -28,8 +28,6 @@ namespace Aether.Devices.Sensors.Metadata
         private class ConcreteI2CSensorInfo<T> : I2CSensorInfo
             where T : IObservableI2CSensorFactory
         {
-            public Type FactoryType => typeof(T);
-
             public override int DefaultAddress => T.DefaultAddress;
 
             public override string Manufacturer => T.Manufacturer;

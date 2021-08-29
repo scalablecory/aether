@@ -12,5 +12,8 @@ namespace Aether.Devices.Sensors
             Measure = measure;
             Value = value;
         }
+
+        public override string ToString() =>
+            $"{{ {Measure}: {Value} }}";
     }
 }

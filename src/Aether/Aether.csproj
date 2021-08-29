@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="Iot.Device.Bindings" Version="1.6.0-prerelease.21419.3" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta1.21417.2" />
     <PackageReference Include="System.Device.Gpio" Version="1.6.0-prerelease.21419.3" />
     <PackageReference Include="System.Reactive" Version="5.0.0" />
     <PackageReference Include="System.Runtime.Experimental" Version="6.0.0-preview.7.21377.19" />
