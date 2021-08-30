@@ -36,7 +36,7 @@ namespace Aether.Devices.Sensors.Observable
             {
                 while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
                 {
-                    while (!_sensor.CheckPeriodicMeasurementAvailable())
+                    while (!_sensor.CheckDataReady())
                     {
                         await Task.Delay(500).ConfigureAwait(false);
                     }

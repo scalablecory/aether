@@ -10,7 +10,7 @@ namespace Aether.Devices.Drivers
     public sealed class SCD4x : IDisposable
     {
         private static ReadOnlySpan<byte> StartPeriodicMeasurementBytes => new byte[] { 0x21, 0xB1 };
-        private static ReadOnlySpan<byte> ReadPeriodicMeasurementAvailableBytes => new byte[] { 0xB8, 0xE4 };
+        private static ReadOnlySpan<byte> CheckDataReadyStatusBytes => new byte[] { 0xE4, 0xB8 };
         private static ReadOnlySpan<byte> ReadPeriodicMeasurementBytes => new byte[] { 0xEC, 0x05 };
         private static ReadOnlySpan<byte> StopPeriodicMeasurementBytes => new byte[] { 0x3F, 0x86 };
 
@@ -40,8 +40,7 @@ namespace Aether.Devices.Drivers
 
             _ = buffer[4];
             BinaryPrimitives.WriteUInt16BigEndian(buffer, 0xE000);
-            BinaryPrimitives.WriteUInt16BigEndian(buffer[2..], (ushort)(pressure.Pascals * (1.0 / 100.0)));
-            buffer[4] = SHT4x.CRC8(buffer[..4]);
+            SHT4x.WriteUInt16AndCRC8(buffer[2..], (ushort)(pressure.Pascals * (1.0 / 100.0)));
 
             _device.Write(buffer);
             Thread.Sleep(1);
@@ -54,7 +53,7 @@ namespace Aether.Devices.Drivers
         /// </para>
         /// 
         /// <para>
-        /// <see cref="CheckPeriodicMeasurementAvailable"/> can be called to see if a measurement is available,
+        /// <see cref="CheckDataReady"/> can be called to see if a measurement is available,
         /// and the measurement can then be read via <see cref="ReadPeriodicMeasurement"/>.
         /// </para>
         /// 
@@ -76,16 +75,16 @@ namespace Aether.Devices.Drivers
         /// </para>
         /// </summary>
         /// <returns>If a measurement is available, <see langword="true"/>. Otherwise, <see langword="false"/>.</returns>
-        public bool CheckPeriodicMeasurementAvailable()
+        public bool CheckDataReady()
         {
-            _device.Write(ReadPeriodicMeasurementAvailableBytes);
+            _device.Write(CheckDataReadyStatusBytes);
 
             Thread.Sleep(1);
 
             Span<byte> buffer = stackalloc byte[3];
             _device.Read(buffer);
 
-            ushort response = SHT4x.ReadUInt16(buffer[..2], buffer[2]);
+            ushort response = SHT4x.ReadUInt16AndCRC8(buffer[..3]);
             return (response & 0x7FF) != 0;
         }
 
@@ -109,9 +108,9 @@ namespace Aether.Devices.Drivers
             _device.Read(buffer);
 
             _ = buffer[8];
-            ushort deviceCO2 = SHT4x.ReadUInt16(buffer[..2], buffer[2]);
-            ushort deviceTemperature = SHT4x.ReadUInt16(buffer[3..5], buffer[5]);
-            ushort deviceHumidity = SHT4x.ReadUInt16(buffer[6..8], buffer[8]);
+            ushort deviceCO2 = SHT4x.ReadUInt16AndCRC8(buffer[0..3]);
+            ushort deviceTemperature = SHT4x.ReadUInt16AndCRC8(buffer[3..6]);
+            ushort deviceHumidity = SHT4x.ReadUInt16AndCRC8(buffer[6..9]);
 
             VolumeConcentration co2 = VolumeConcentration.FromPartsPerMillion(deviceCO2);
             Temperature temp = Temperature.FromDegreesCelsius(Math.FusedMultiplyAdd(deviceTemperature, 35.0 / 13107.0, -45.0));
