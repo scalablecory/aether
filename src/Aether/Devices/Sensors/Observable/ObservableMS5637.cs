@@ -4,13 +4,13 @@ using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
-    internal sealed class ObservableSHT4x : ObservableSensor, IObservableI2CSensorFactory
+    internal sealed class ObservableMS5637 : ObservableSensor, IObservableI2CSensorFactory
     {
-        private readonly Drivers.SHT4x _sensor;
+        private Drivers.MS5637 _sensor;
 
-        private ObservableSHT4x(I2cDevice device)
+        private ObservableMS5637(I2cDevice device)
         {
-            _sensor = new Drivers.SHT4x(device);
+            _sensor = new Drivers.MS5637(device);
         }
 
         protected override void DisposeCore() =>
@@ -23,27 +23,27 @@ namespace Aether.Devices.Sensors.Observable
 
             while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                (RelativeHumidity humidity, Temperature temperature) =
-                    _sensor.ReadHighlyRepeatableMeasurement();
+                (Temperature temperature, Pressure pressure) =
+                    _sensor.ReadTemperatureAndPressure();
 
-                OnNextRelativeHumidity(humidity);
                 OnNextTemperature(temperature);
+                OnNextBarometricPressure(pressure);
             }
         }
 
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => 0x44;
+        public static int DefaultAddress => 0x76;
 
-        public static string Manufacturer => "Sensirion";
+        public static string Manufacturer => "TE Connectivity";
 
-        public static string Name => "SHT4x";
+        public static string Name => "MS5637";
 
-        public static string Uri => "https://www.sensirion.com/en/environmental-sensors/humidity-sensors/humidity-sensor-sht4x/";
+        public static string Uri => "https://www.te.com/commerce/DocumentDelivery/DDEController?Action=srchrtrv&DocNm=MS5637-02BA03&DocType=Data+Sheet&DocLang=English";
 
         public static IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
-            new MeasureInfo(Measure.Humidity),
+            new MeasureInfo(Measure.Pressure),
             new MeasureInfo(Measure.Temperature)
         };
 
@@ -51,7 +51,7 @@ namespace Aether.Devices.Sensors.Observable
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
         public static ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
-            new ObservableSHT4x(device);
+            new ObservableMS5637(device);
 
         #endregion
     }

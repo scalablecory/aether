@@ -3,46 +3,42 @@ using Aether.Devices.Sensors.Metadata;
 using Aether.Devices.Sensors.Observable;
 using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Device.I2c;
 using System.Reactive.Linq;
+using UnitsNet;
 
-var rootCommand = new RootCommand("Runs Aether");
-
-var testCommand = new Command("test");
-rootCommand.AddCommand(testCommand);
-
-var testSensorCommand = new Command("sensor")
+var listSensorCommand = new Command("list", "Lists available sensors")
 {
-    new Argument<string>("name"),
-    new Option<uint>("i2cBus"),
-    new Option<uint>("i2cAddress")
+    Handler = CommandHandler.Create(() =>
+    {
+        foreach (SensorInfo sensorInfo in SensorInfo.Sensors)
+        {
+            string type = sensorInfo switch
+            {
+                I2CSensorInfo i2c => $"i2c(0x{i2c.DefaultAddress:X2})",
+                _ => throw new Exception($"Unknown {nameof(SensorInfo)} subclass.")
+            };
+
+            Console.WriteLine($"{type} - {sensorInfo.Name} - {string.Join(", ", sensorInfo.Measures)}");
+        }
+    })
 };
-testSensorCommand.Handler = CommandHandler.Create(async (string name, uint? i2cBus, uint? i2cAddress) =>
+
+var testi2cSensorCommand = new Command("i2c", "Tests a I2C sensor")
 {
-    SensorInfo? sensorInfo = SensorInfo.Sensors.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+    new Argument<string>("name", "The name of the sensor to test."),
+    new Argument<uint>("bus", "The I2C bus to use."),
+    new Argument<uint>("address", "The I2C address to use.")
+};
+
+testi2cSensorCommand.Handler = CommandHandler.Create(async (string name, uint bus, uint address) =>
+{
+    SensorInfo? sensorInfo = SensorInfo.Sensors.FirstOrDefault(x => x is I2CSensorInfo && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
     await using ObservableSensor sensor = sensorInfo switch
     {
-        I2CSensorInfo i2c => CreateI2C(i2c),
-        null => throw new Exception("Invalid sensor"),
-        _ => throw new Exception("Unknown sensor type.")
+        I2CSensorInfo i2c => i2c.OpenDevice((int)bus, (int)address, Enumerable.Empty<ObservableSensor>()),
+        _ => throw new Exception("Invalid sensor")
     };
-
-    ObservableSensor CreateI2C(I2CSensorInfo i2c)
-    {
-        if (i2cBus is null) throw new Exception($"Sensor '{name}' requires {nameof(i2cBus)} to be specified, and optionally {nameof(i2cAddress)}.");
-
-        I2cDevice device = I2cDevice.Create(new I2cConnectionSettings((int)i2cBus, (int?)i2cAddress ?? i2c.DefaultAddress));
-        try
-        {
-            return i2c.OpenDevice(device, Observable.Empty<Measurement>());
-        }
-        catch
-        {
-            device.Dispose();
-            throw;
-        }
-    }
 
     Console.CancelKeyPress += (s, e) =>
     {
@@ -50,13 +46,33 @@ testSensorCommand.Handler = CommandHandler.Create(async (string name, uint? i2cB
         _ = sensor.DisposeAsync().AsTask();
     };
 
-    await sensor.ForEachAsync(measurement =>
+    await Observable.Merge(
+        sensor.CO2.Select(x => (Measure.CO2, (IQuantity)x)),
+        sensor.Temperature.Select(x => (Measure.Temperature, (IQuantity)x)),
+        sensor.RelativeHumidity.Select(x => (Measure.Humidity, (IQuantity)x)),
+        sensor.BarometricPressure.Select(x => (Measure.Pressure, (IQuantity)x))
+    ).ForEachAsync(x =>
     {
-        Console.WriteLine($"[{DateTime.Now:T}] {measurement.Measure}: {measurement.Value}");
+        Console.WriteLine($"[{DateTime.Now:t}] {x.Item1}: {x.Item2}");
     });
 
     await Task.Delay(1);
 });
-testCommand.AddCommand(testSensorCommand);
+
+var testSensorCommand = new Command("test", "Tests a sensor")
+{
+    testi2cSensorCommand,
+};
+
+var sensorCommand = new Command("sensor", "Operates on sensors")
+{
+    listSensorCommand,
+    testSensorCommand
+};
+
+var rootCommand = new RootCommand()
+{
+    sensorCommand
+};
 
 await rootCommand.InvokeAsync(Environment.CommandLine);

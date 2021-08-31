@@ -11,7 +11,7 @@ namespace Aether.Devices.Drivers
     public sealed class MS5637 : IDisposable
     {
         private readonly I2cDevice _device;
-        private ushort _c1, _c2, _c3, _c4, _c5, _c6;
+        private readonly ushort _c1, _c2, _c3, _c4, _c5, _c6;
 
         /// <summary>
         /// Instantiates a new <see cref="MS5637"/>.
@@ -20,16 +20,39 @@ namespace Aether.Devices.Drivers
         public MS5637(I2cDevice device)
         {
             _device = device;
+
+            Reset();
+
+            // TODO: check crc.
+            //ushort crc = ReadPROMCoefficient(0xA0);
+
+            _c1 = ReadPROMCoefficient(0xA2);
+            _c2 = ReadPROMCoefficient(0xA4);
+            _c3 = ReadPROMCoefficient(0xA6);
+            _c4 = ReadPROMCoefficient(0xA8);
+            _c5 = ReadPROMCoefficient(0xAA);
+            _c6 = ReadPROMCoefficient(0xAC);
         }
 
         /// <inheritdoc/>
         public void Dispose() =>
             _device.Dispose();
 
-        public (Temperature, Pressure) ReadTemperatureAndPressure()
+        public (Temperature, Pressure) ReadTemperatureAndPressure(OversamplingRatio oversampling = OversamplingRatio.OSR8192)
         {
-            int d1 = WriteCommandAndReadUInt24(0x4A);
-            int d2 = WriteCommandAndReadUInt24(0x5A);
+            (int commandOffset, int delay) = oversampling switch
+            {
+                OversamplingRatio.OSR256 => (0, 1),
+                OversamplingRatio.OSR512 => (2, 2),
+                OversamplingRatio.OSR1024 => (4, 3),
+                OversamplingRatio.OSR2048 => (6, 5),
+                OversamplingRatio.OSR4096 => (8, 9),
+                OversamplingRatio.OSR8192 => (10, 17),
+                _ => throw new ArgumentOutOfRangeException(nameof(oversampling))
+            };
+
+            int d1 = (int)WriteCommandAndReadUInt24((byte)(0x40 + commandOffset), delay);
+            int d2 = (int)WriteCommandAndReadUInt24((byte)(0x50 + commandOffset), delay);
 
             // calc temp.
             int dT = d2 - _c5 * 0x100;
@@ -41,13 +64,13 @@ namespace Aether.Devices.Drivers
 
             // second order compensation for non-linearity.
 
-            int t2;
+            long dTsq = (long)dT * dT;
+
             if (temp < 2000)
             {
-                int tempsq = temp - 2000;
+                long tempsq = temp - 2000;
                 tempsq *= tempsq;
 
-                t2 = (int)(3L * dT * dT / 0x200000000);
                 off -= 61 * tempsq / 0x10;
                 sens -= 29 * tempsq / 0x10;
 
@@ -59,49 +82,34 @@ namespace Aether.Devices.Drivers
                     off -= 17 * tempsq;
                     sens -= 9 * tempsq;
                 }
+
+                temp -= (int)(3 * dTsq / 0x200000000);
             }
             else
             {
-                t2 = (int)(5L * dT * dT / 0x4000000000);
+                temp -= (int)(5 * dTsq / 0x4000000000);
             }
-
-            temp -= t2;
 
             int p = (int)((d1 * sens / 0x200000 - off) / 0x8000);
 
             return (
-                Temperature.FromDegreesCelsius(temp * (1.0 / 10.0)),
-                Pressure.FromMillibars(p * (1.0 / 10.0))
+                Temperature.FromDegreesCelsius(temp * (1.0 / 100.0)),
+                Pressure.FromMillibars(p * (1.0 / 100.0))
                 );
         }
 
-        private int WriteCommandAndReadUInt24(byte command)
+        private uint WriteCommandAndReadUInt24(byte command, int delay)
         {
             _device.WriteByte(command);
 
-            Thread.Sleep(17);
+            Thread.Sleep(delay);
 
             Span<byte> buffer = stackalloc byte[3];
 
             command = 0;
             _device.WriteRead(MemoryMarshal.CreateReadOnlySpan(ref command, 1), buffer);
 
-            return (int)(((uint)BinaryPrimitives.ReadUInt16BigEndian(buffer) << 8) | buffer[2]);
-        }
-
-        private void Initialize()
-        {
-            Reset();
-
-            _c1 = ReadPROMCoefficient(0xA0);
-            _c2 = ReadPROMCoefficient(0xA2);
-            _c3 = ReadPROMCoefficient(0xA4);
-            _c4 = ReadPROMCoefficient(0xA6);
-            _c5 = ReadPROMCoefficient(0xA8);
-            _c6 = ReadPROMCoefficient(0xAA);
-
-            ushort crc = ReadPROMCoefficient(0xAC);
-            // TODO: use CRC.
+            return ((uint)BinaryPrimitives.ReadUInt16BigEndian(buffer) << 8) | buffer[2];
         }
 
         private void Reset() =>
@@ -113,6 +121,17 @@ namespace Aether.Devices.Drivers
             _device.WriteRead(MemoryMarshal.CreateReadOnlySpan(ref command, 1), buffer);
 
             return BinaryPrimitives.ReadUInt16BigEndian(buffer);
+        }
+
+        // Bigger number = better accuracy but takes longer to read.
+        public enum OversamplingRatio
+        {
+            OSR256,
+            OSR512,
+            OSR1024,
+            OSR2048,
+            OSR4096,
+            OSR8192
         }
     }
 }

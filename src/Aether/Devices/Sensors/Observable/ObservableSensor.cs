@@ -1,18 +1,58 @@
 ﻿using Aether.Devices.Sensors.Metadata;
 using System.Reactive.Subjects;
+using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
     /// <summary>
     /// A sensor which takes periodic measurements and can run commands.
     /// </summary>
-    internal abstract class ObservableSensor : IObservable<Measurement>, IAsyncDisposable
+    internal abstract class ObservableSensor : IAsyncDisposable
     {
-        private readonly Subject<Measurement> _subject = new();
+        private readonly ReplaySubject<RelativeHumidity> _humidity = new(bufferSize: 1);
+        private readonly ReplaySubject<Temperature> _temperature = new(bufferSize: 1);
+        private readonly ReplaySubject<VolumeConcentration> _co2 = new(bufferSize: 1);
+        private readonly ReplaySubject<Pressure> _pressure = new(bufferSize: 1);
         private readonly CancellationTokenSource _cts = new();
         private Task? _task;
 
         private object Sync => _cts;
+
+        public IObservable<RelativeHumidity> RelativeHumidity
+        {
+            get
+            {
+                if (_task is null) StartIfNotStarted();
+                return _humidity;
+            }
+        }
+
+        public IObservable<Temperature> Temperature
+        {
+            get
+            {
+                if (_task is null) StartIfNotStarted();
+                return _temperature;
+            }
+        }
+
+        public IObservable<VolumeConcentration> CO2
+        {
+            get
+            {
+                if (_task is null) StartIfNotStarted();
+                return _co2;
+            }
+        }
+
+        public IObservable<Pressure> BarometricPressure
+        {
+            get
+            {
+                if (_task is null) StartIfNotStarted();
+                return _pressure;
+            }
+        }
 
         public async ValueTask DisposeAsync()
         {            
@@ -31,30 +71,43 @@ namespace Aether.Devices.Sensors.Observable
             }
 
             DisposeCore();
-            _subject.Dispose();
+            _humidity.Dispose();
+            _temperature.Dispose();
+            _co2.Dispose();
+            _pressure.Dispose();
 
             GC.SuppressFinalize(this);
         }
 
         protected abstract void DisposeCore();
 
-        public IDisposable Subscribe(IObserver<Measurement> observer)
-        {
-            if (_task is null)
-            {
-                StartIfNotStarted();
-            }
-
-            return _subject.Subscribe(observer);
-        }
+        /// <summary>
+        /// Called by <see cref="ProcessLoopAsync(CancellationToken)"/> to report a new periodic measurement.
+        /// </summary>
+        /// <param name="value">The value of the measure being reported.</param>
+        protected void OnNextRelativeHumidity(RelativeHumidity value) =>
+            _humidity.OnNext(value);
 
         /// <summary>
         /// Called by <see cref="ProcessLoopAsync(CancellationToken)"/> to report a new periodic measurement.
         /// </summary>
-        /// <param name="measure">The type of measure being reported.</param>
         /// <param name="value">The value of the measure being reported.</param>
-        protected void OnNext(Measure measure, UnitsNet.IQuantity value) =>
-            _subject.OnNext(new Measurement(measure, value));
+        protected void OnNextTemperature(Temperature value) =>
+            _temperature.OnNext(value);
+
+        /// <summary>
+        /// Called by <see cref="ProcessLoopAsync(CancellationToken)"/> to report a new periodic measurement.
+        /// </summary>
+        /// <param name="value">The value of the measure being reported.</param>
+        protected void OnNextCO2(VolumeConcentration value) =>
+            _co2.OnNext(value);
+
+        /// <summary>
+        /// Called by <see cref="ProcessLoopAsync(CancellationToken)"/> to report a new periodic measurement.
+        /// </summary>
+        /// <param name="value">The value of the measure being reported.</param>
+        protected void OnNextBarometricPressure(Pressure value) =>
+            _pressure.OnNext(value);
 
         private async Task RunProcessLoopAsync()
         {
@@ -73,11 +126,17 @@ namespace Aether.Devices.Sensors.Observable
             }
             catch (Exception ex)
             {
-                _subject.OnError(ex);
+                _humidity.OnError(ex);
+                _temperature.OnError(ex);
+                _co2.OnError(ex);
+                _pressure.OnError(ex);
                 return;
             }
 
-            _subject.OnCompleted();
+            _humidity.OnCompleted();
+            _temperature.OnCompleted();
+            _co2.OnCompleted();
+            _pressure.OnCompleted();
         }
 
         /// <summary>

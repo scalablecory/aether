@@ -8,5 +8,8 @@
         {
             Measure = measure;
         }
+
+        public override string ToString() =>
+            Measure.ToString();
     }
 }

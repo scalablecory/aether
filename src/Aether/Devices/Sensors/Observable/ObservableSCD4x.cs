@@ -9,9 +9,9 @@ namespace Aether.Devices.Sensors.Observable
     internal class ObservableSCD4x : ObservableSensor, IObservableI2CSensorFactory
     {
         private readonly Drivers.SCD4x _sensor;
-        private readonly IObservable<Measurement> _dependencies;
+        private readonly IEnumerable<ObservableSensor> _dependencies;
 
-        private ObservableSCD4x(I2cDevice device, IObservable<Measurement> dependencies)
+        private ObservableSCD4x(I2cDevice device, IEnumerable<ObservableSensor> dependencies)
         {
             _sensor = new Drivers.SCD4x(device);
             _dependencies = dependencies;
@@ -27,8 +27,8 @@ namespace Aether.Devices.Sensors.Observable
 
             var pressureObserver = new ObservedValue<Pressure>();
             using IDisposable subscription = _dependencies
-                .Where(static measurement => measurement.Measure == Measure.Pressure)
-                .Select(static measurement => (Pressure)measurement.Value)
+                .Select(static dependency => dependency.BarometricPressure)
+                .Merge()
                 .Subscribe(pressureObserver);
 
             _sensor.StartPeriodicMeasurements();
@@ -44,9 +44,9 @@ namespace Aether.Devices.Sensors.Observable
                     (VolumeConcentration co2, RelativeHumidity humidity, Temperature temperature) =
                         _sensor.ReadPeriodicMeasurement();
 
-                    OnNext(Measure.CO2, co2);
-                    OnNext(Measure.Humidity, humidity);
-                    OnNext(Measure.Temperature, temperature);
+                    OnNextCO2(co2);
+                    OnNextRelativeHumidity(humidity);
+                    OnNextTemperature(temperature);
 
                     if (pressureObserver.TryGetValueIfChanged(out Pressure pressure))
                     {
@@ -82,7 +82,7 @@ namespace Aether.Devices.Sensors.Observable
         // TODO: self-calibration command.
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenDevice(I2cDevice device, IObservable<Measurement> dependencies) =>
+        public static ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
             new ObservableSCD4x(device, dependencies);
 
         #endregion

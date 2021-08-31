@@ -15,7 +15,8 @@ namespace Aether.Devices.Sensors.Metadata
         public static IReadOnlyList<SensorInfo> Sensors { get; } = new List<SensorInfo>
         {
             new ConcreteI2CSensorInfo<ObservableSCD4x>(),
-            new ConcreteI2CSensorInfo<ObservableSHT4x>()
+            new ConcreteI2CSensorInfo<ObservableSHT4x>(),
+            new ConcreteI2CSensorInfo<ObservableMS5637>()
         };
 
         public abstract string Manufacturer { get; }
@@ -38,7 +39,7 @@ namespace Aether.Devices.Sensors.Metadata
 
             public override IEnumerable<MeasureInfo> Measures => T.Measures;
 
-            public override ObservableSensor OpenDevice(I2cDevice device, IObservable<Measurement> dependencies) =>
+            public override ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
                 T.OpenDevice(device, dependencies);
         }
     }
