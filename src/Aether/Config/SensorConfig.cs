@@ -11,7 +11,7 @@ namespace Aether.Config
 
         public IEnumerable<SensorInfo> Dependencies { get; }
 
-        public SensorConfig(I2CSensorInfo sensor, I2cConnectionSettings i2cSettings, IEnumerable<SensorInfo> dependencies)
+        public SensorConfig(I2cSensorInfo sensor, I2cConnectionSettings i2cSettings, IEnumerable<SensorInfo> dependencies)
         {
             Sensor = sensor;
             I2cSettings = i2cSettings;

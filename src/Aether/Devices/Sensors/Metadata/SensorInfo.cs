@@ -23,11 +23,11 @@ namespace Aether.Devices.Sensors.Metadata
         public abstract string Name { get; }
         public abstract string Uri { get; }
         public abstract IEnumerable<MeasureInfo> Measures { get; }
-        public virtual IEnumerable<SensorDependency> Dependencies => Enumerable.Empty<SensorDependency>();
-        public virtual IEnumerable<SensorCommand> Commands => Enumerable.Empty<SensorCommand>();
+        public abstract IEnumerable<SensorDependency> Dependencies { get; }
+        public abstract IEnumerable<SensorCommand> Commands { get; }
 
-        private class ConcreteI2CSensorInfo<T> : I2CSensorInfo
-            where T : IObservableI2CSensorFactory
+        private class ConcreteI2CSensorInfo<T> : I2cSensorInfo
+            where T : IObservableI2cSensorFactory
         {
             public override int DefaultAddress => T.DefaultAddress;
 
@@ -38,6 +38,8 @@ namespace Aether.Devices.Sensors.Metadata
             public override string Uri => T.Uri;
 
             public override IEnumerable<MeasureInfo> Measures => T.Measures;
+            public override IEnumerable<SensorDependency> Dependencies => T.Dependencies;
+            public override IEnumerable<SensorCommand> Commands => T.Commands;
 
             public override ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
                 T.OpenDevice(device, dependencies);

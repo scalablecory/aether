@@ -9,6 +9,8 @@ namespace Aether.Devices.Drivers
     /// </summary>
     public sealed class SCD4x : IDisposable
     {
+        public const int DefaultAddress = 0x62;
+
         private static ReadOnlySpan<byte> StartPeriodicMeasurementBytes => new byte[] { 0x21, 0xB1 };
         private static ReadOnlySpan<byte> CheckDataReadyStatusBytes => new byte[] { 0xE4, 0xB8 };
         private static ReadOnlySpan<byte> ReadPeriodicMeasurementBytes => new byte[] { 0xEC, 0x05 };

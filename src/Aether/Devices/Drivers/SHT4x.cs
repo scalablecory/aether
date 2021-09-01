@@ -12,6 +12,8 @@ namespace Aether.Devices.Drivers
     /// </summary>
     public sealed class SHT4x : IDisposable
     {
+        public const int DefaultAddress = 0x44;
+
         private readonly I2cDevice _device;
 
         /// <summary>
@@ -28,13 +30,21 @@ namespace Aether.Devices.Drivers
             _device.Dispose();
 
         /// <summary>
-        /// Performs a highly repeatable measurement of humidity and temperature.
+        /// Reads humidity and temperature.
         /// </summary>
         /// <returns>A tuple of humidity and temperature.</returns>
-        public (RelativeHumidity, Temperature) ReadHighlyRepeatableMeasurement()
+        public (RelativeHumidity, Temperature) ReadHumidityAndTemperature(Repeatability repeatability = Repeatability.High)
         {
-            _device.WriteByte(0xFD);
-            Thread.Sleep(9);
+            (byte cmd, int delay) = repeatability switch
+            {
+                Repeatability.Low => ((byte)0xE0, 2),
+                Repeatability.Medium => ((byte)0xF6, 5),
+                Repeatability.High => ((byte)0xFD, 9),
+                _ => throw new ArgumentOutOfRangeException(nameof(repeatability))
+            };
+
+            _device.WriteByte(cmd);
+            Thread.Sleep(delay);
 
             Span<byte> buffer = stackalloc byte[6];
             _device.Read(buffer);
@@ -120,5 +130,23 @@ namespace Aether.Devices.Drivers
             0xC1, 0xF0, 0xA3, 0x92, 0x05, 0x34, 0x67, 0x56, 0x78, 0x49, 0x1A, 0x2B, 0xBC, 0x8D, 0xDE, 0xEF,
             0x82, 0xB3, 0xE0, 0xD1, 0x46, 0x77, 0x24, 0x15, 0x3B, 0x0A, 0x59, 0x68, 0xFF, 0xCE, 0x9D, 0xAC
         };
+
+        public enum Repeatability
+        {
+            /// <summary>
+            /// 0.25% RH error
+            /// </summary>
+            Low,
+
+            /// <summary>
+            /// 0.15% RH error
+            /// </summary>
+            Medium,
+
+            /// <summary>
+            /// 0.08% RH error
+            /// </summary>
+            High
+        }
     }
 }

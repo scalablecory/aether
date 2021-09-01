@@ -4,11 +4,12 @@ using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
-    internal sealed class ObservableMS5637 : ObservableSensor, IObservableI2CSensorFactory
+    internal sealed class ObservableMS5637 : ObservableSensor, IObservableI2cSensorFactory, ISimulatedI2cDeviceFactory
     {
         private Drivers.MS5637 _sensor;
 
-        private ObservableMS5637(I2cDevice device)
+        private ObservableMS5637(I2cDevice device) :
+            base(Measure.Pressure, Measure.Temperature)
         {
             _sensor = new Drivers.MS5637(device);
         }
@@ -33,7 +34,7 @@ namespace Aether.Devices.Sensors.Observable
 
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => 0x76;
+        public static int DefaultAddress => Drivers.MS5637.DefaultAddress;
 
         public static string Manufacturer => "TE Connectivity";
 
@@ -52,6 +53,9 @@ namespace Aether.Devices.Sensors.Observable
 
         public static ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
             new ObservableMS5637(device);
+
+        public static I2cDevice CreateSimulatedI2cDevice() =>
+            new Simulated.SimulatedMS5637();
 
         #endregion
     }

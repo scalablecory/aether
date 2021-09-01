@@ -10,6 +10,8 @@ namespace Aether.Devices.Drivers
     /// </summary>
     public sealed class MS5637 : IDisposable
     {
+        public const int DefaultAddress = 0x76;
+
         private readonly I2cDevice _device;
         private readonly ushort _c1, _c2, _c3, _c4, _c5, _c6;
 

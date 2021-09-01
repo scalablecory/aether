@@ -4,11 +4,12 @@ using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
-    internal sealed class ObservableSHT4x : ObservableSensor, IObservableI2CSensorFactory
+    internal sealed class ObservableSHT4x : ObservableSensor, IObservableI2cSensorFactory
     {
         private readonly Drivers.SHT4x _sensor;
 
         private ObservableSHT4x(I2cDevice device)
+            : base(Measure.Humidity, Measure.Temperature)
         {
             _sensor = new Drivers.SHT4x(device);
         }
@@ -24,7 +25,7 @@ namespace Aether.Devices.Sensors.Observable
             while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
                 (RelativeHumidity humidity, Temperature temperature) =
-                    _sensor.ReadHighlyRepeatableMeasurement();
+                    _sensor.ReadHumidityAndTemperature();
 
                 OnNextRelativeHumidity(humidity);
                 OnNextTemperature(temperature);
@@ -33,7 +34,7 @@ namespace Aether.Devices.Sensors.Observable
 
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => 0x44;
+        public static int DefaultAddress => Drivers.SHT4x.DefaultAddress;
 
         public static string Manufacturer => "Sensirion";
 

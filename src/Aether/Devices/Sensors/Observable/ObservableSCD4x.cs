@@ -6,12 +6,13 @@ using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
-    internal class ObservableSCD4x : ObservableSensor, IObservableI2CSensorFactory
+    internal class ObservableSCD4x : ObservableSensor, IObservableI2cSensorFactory
     {
         private readonly Drivers.SCD4x _sensor;
         private readonly IEnumerable<ObservableSensor> _dependencies;
 
         private ObservableSCD4x(I2cDevice device, IEnumerable<ObservableSensor> dependencies)
+            : base(Measure.CO2, Measure.Humidity, Measure.Temperature)
         {
             _sensor = new Drivers.SCD4x(device);
             _dependencies = dependencies;
@@ -62,7 +63,7 @@ namespace Aether.Devices.Sensors.Observable
 
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => 0x62;
+        public static int DefaultAddress => Drivers.SCD4x.DefaultAddress;
 
         public static string Manufacturer => "Sensirion";
 

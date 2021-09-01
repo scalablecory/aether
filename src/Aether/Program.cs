@@ -14,7 +14,7 @@ var listSensorCommand = new Command("list", "Lists available sensors")
         {
             string type = sensorInfo switch
             {
-                I2CSensorInfo i2c => $"i2c(0x{i2c.DefaultAddress:X2})",
+                I2cSensorInfo i2c => $"i2c(0x{i2c.DefaultAddress:X2})",
                 _ => throw new Exception($"Unknown {nameof(SensorInfo)} subclass.")
             };
 
@@ -32,11 +32,11 @@ var testi2cSensorCommand = new Command("i2c", "Tests a I2C sensor")
 
 testi2cSensorCommand.Handler = CommandHandler.Create(async (string name, uint bus, uint address) =>
 {
-    SensorInfo? sensorInfo = SensorInfo.Sensors.FirstOrDefault(x => x is I2CSensorInfo && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+    SensorInfo? sensorInfo = SensorInfo.Sensors.FirstOrDefault(x => x is I2cSensorInfo && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
     await using ObservableSensor sensor = sensorInfo switch
     {
-        I2CSensorInfo i2c => i2c.OpenDevice((int)bus, (int)address, Enumerable.Empty<ObservableSensor>()),
+        I2cSensorInfo i2c => i2c.OpenDevice((int)bus, (int)address, Enumerable.Empty<ObservableSensor>()),
         _ => throw new Exception("Invalid sensor")
     };
 
@@ -59,20 +59,16 @@ testi2cSensorCommand.Handler = CommandHandler.Create(async (string name, uint bu
     await Task.Delay(1);
 });
 
-var testSensorCommand = new Command("test", "Tests a sensor")
-{
-    testi2cSensorCommand,
-};
-
-var sensorCommand = new Command("sensor", "Operates on sensors")
-{
-    listSensorCommand,
-    testSensorCommand
-};
-
 var rootCommand = new RootCommand()
 {
-    sensorCommand
+    new Command("sensor", "Operates on sensors")
+    {
+        listSensorCommand,
+        new Command("test", "Tests a sensor")
+        {
+            testi2cSensorCommand,
+        }
+    }
 };
 
 await rootCommand.InvokeAsync(Environment.CommandLine);
