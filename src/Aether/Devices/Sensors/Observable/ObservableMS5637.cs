@@ -51,7 +51,7 @@ namespace Aether.Devices.Sensors.Observable
         public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
+        public static ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
             new ObservableMS5637(device);
 
         public static I2cDevice CreateSimulatedI2cDevice() =>

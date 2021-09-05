@@ -5,6 +5,6 @@ namespace Aether.Devices.Sensors.Observable
     interface IObservableI2cSensorFactory : IObservableSensorFactory
     {
         static abstract int DefaultAddress { get; }
-        static abstract ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies);
+        static abstract ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies);
     }
 }

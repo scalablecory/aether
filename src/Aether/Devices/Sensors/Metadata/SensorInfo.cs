@@ -16,7 +16,7 @@ namespace Aether.Devices.Sensors.Metadata
         {
             new ConcreteI2CSensorInfo<ObservableSCD4x>(),
             new ConcreteI2CSensorInfo<ObservableSHT4x>(),
-            new ConcreteI2CSensorInfo<ObservableMS5637>()
+            new SimulatedI2cSensorInfo<ObservableMS5637>()
         };
 
         public abstract string Manufacturer { get; }
@@ -25,6 +25,9 @@ namespace Aether.Devices.Sensors.Metadata
         public abstract IEnumerable<MeasureInfo> Measures { get; }
         public abstract IEnumerable<SensorDependency> Dependencies { get; }
         public abstract IEnumerable<SensorCommand> Commands { get; }
+
+        public abstract bool CanSimulateSensor { get; }
+        public abstract ObservableSensor CreateSimulatedSensor(IEnumerable<ObservableSensor> dependencies);
 
         private class ConcreteI2CSensorInfo<T> : I2cSensorInfo
             where T : IObservableI2cSensorFactory
@@ -41,8 +44,33 @@ namespace Aether.Devices.Sensors.Metadata
             public override IEnumerable<SensorDependency> Dependencies => T.Dependencies;
             public override IEnumerable<SensorCommand> Commands => T.Commands;
 
-            public override ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
-                T.OpenDevice(device, dependencies);
+            public override bool CanSimulateSensor => false;
+
+            public override ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
+                T.OpenSensor(device, dependencies);
+
+            public override ObservableSensor CreateSimulatedSensor(IEnumerable<ObservableSensor> dependencies) =>
+                throw new NotImplementedException();
+        }
+
+        private sealed class SimulatedI2cSensorInfo<T> : ConcreteI2CSensorInfo<T>
+            where T : IObservableI2cSensorFactory, ISimulatedI2cDeviceFactory
+        {
+            public override bool CanSimulateSensor => true;
+
+            public override ObservableSensor CreateSimulatedSensor(IEnumerable<ObservableSensor> dependencies)
+            {
+                I2cDevice device = T.CreateSimulatedI2cDevice();
+                try
+                {
+                    return OpenSensor(device, dependencies);
+                }
+                catch
+                {
+                    device.Dispose();
+                    throw;
+                }
+            }
         }
     }
 }

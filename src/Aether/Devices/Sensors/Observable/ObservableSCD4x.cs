@@ -83,7 +83,7 @@ namespace Aether.Devices.Sensors.Observable
         // TODO: self-calibration command.
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenDevice(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
+        public static ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
             new ObservableSCD4x(device, dependencies);
 
         #endregion
