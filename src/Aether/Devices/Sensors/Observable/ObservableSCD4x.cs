@@ -23,7 +23,7 @@ namespace Aether.Devices.Sensors.Observable
 
         protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
         {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5_000));
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
             using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
 
             var pressureObserver = new ObservedValue<Pressure>();
