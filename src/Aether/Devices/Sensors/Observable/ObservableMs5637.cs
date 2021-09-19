@@ -1,21 +1,30 @@
 ﻿using Aether.Devices.Sensors.Metadata;
 using System.Device.I2c;
+using System.Reactive.Subjects;
 using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
-    internal sealed class ObservableMS5637 : ObservableSensor, IObservableI2cSensorFactory, ISimulatedI2cDeviceFactory
+    internal sealed class ObservableMs5637 : ObservableSensor, IObservableI2cSensorFactory, ISimulatedI2cDeviceFactory
     {
-        private Drivers.MS5637 _sensor;
+        private readonly Drivers.Ms5637 _sensor;
+        private readonly ReplaySubject<Pressure> _p = new(bufferSize: 1);
+        private readonly ReplaySubject<Temperature> _t = new(bufferSize: 1);
 
-        private ObservableMS5637(I2cDevice device) :
-            base(Measure.Pressure, Measure.Temperature)
+        public override IObservable<Pressure> BarometricPressure => _p;
+        public override IObservable<Temperature> Temperature => _t;
+
+        private ObservableMs5637(I2cDevice device)
         {
-            _sensor = new Drivers.MS5637(device);
+            _sensor = new Drivers.Ms5637(device);
         }
 
-        protected override void DisposeCore() =>
+        protected override void DisposeCore()
+        {
             _sensor.Dispose();
+            _p.Dispose();
+            _t.Dispose();
+        }
 
         protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
         {
@@ -27,14 +36,26 @@ namespace Aether.Devices.Sensors.Observable
                 (Temperature temperature, Pressure pressure) =
                     _sensor.ReadTemperatureAndPressure();
 
-                OnNextTemperature(temperature);
-                OnNextBarometricPressure(pressure);
+                _t.OnNext(temperature);
+                _p.OnNext(pressure);
             }
+        }
+
+        protected override void OnError(Exception ex)
+        {
+            _t.OnError(ex);
+            _p.OnError(ex);
+        }
+
+        protected override void OnCompleted()
+        {
+            _t.OnCompleted();
+            _p.OnCompleted();
         }
 
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => Drivers.MS5637.DefaultAddress;
+        public static int DefaultAddress => Drivers.Ms5637.DefaultI2cAddress;
 
         public static string Manufacturer => "TE Connectivity";
 
@@ -52,7 +73,7 @@ namespace Aether.Devices.Sensors.Observable
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
         public static ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
-            new ObservableMS5637(device);
+            new ObservableMs5637(device);
 
         public static I2cDevice CreateSimulatedI2cDevice() =>
             new Simulated.SimulatedMS5637();

@@ -14,9 +14,9 @@ namespace Aether.Devices.Sensors.Metadata
         /// </summary>
         public static IReadOnlyList<SensorInfo> Sensors { get; } = new List<SensorInfo>
         {
-            new ConcreteI2CSensorInfo<ObservableSCD4x>(),
-            new ConcreteI2CSensorInfo<ObservableSHT4x>(),
-            new SimulatedI2cSensorInfo<ObservableMS5637>()
+            new ConcreteI2CSensorInfo<ObservableScd4x>(),
+            new ConcreteI2CSensorInfo<ObservableSht4x>(),
+            new SimulatedI2cSensorInfo<ObservableMs5637>()
         };
 
         public abstract string Manufacturer { get; }

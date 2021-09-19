@@ -1,6 +1,6 @@
 # Aether
 
-Aether is an air quality monitoring software and device, Open Source and powered by .NET.
+Aether is an air quality monitoring software and device, Open Source and powered by .NET 6.
 
 This project is a WIP. Contributions welcome -- file issues or [contact me](https://github.com/scalablecory).
 
@@ -16,7 +16,7 @@ This project is a WIP. Contributions welcome -- file issues or [contact me](http
 
 ## Hardware Support (Planned)
 
-Initial support will use specific high-quality hardware. In the future, lower cost options will be supported.
+Initial support will use specific hardware to support [Build A](builds/a.md). In the future, lower cost options will be supported.
 
 - [Raspberry Pi](https://www.raspberrypi.org/)
 - [Waveshare 2.9" E-ink display](https://www.waveshare.com/product/displays/e-paper/epaper-2/2.9inch-e-paper-module.htm)

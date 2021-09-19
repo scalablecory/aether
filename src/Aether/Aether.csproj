@@ -7,15 +7,23 @@
     <Nullable>enable</Nullable>
     <EnablePreviewFeatures>true</EnablePreviewFeatures>
     <LangVersion>preview</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Iot.Device.Bindings" Version="1.6.0-prerelease.21419.3" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta15" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.3" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
     <PackageReference Include="System.CommandLine" Version="2.0.0-beta1.21417.2" />
     <PackageReference Include="System.Device.Gpio" Version="1.6.0-prerelease.21419.3" />
     <PackageReference Include="System.Reactive" Version="5.0.0" />
     <PackageReference Include="System.Runtime.Experimental" Version="6.0.0-preview.7.21377.19" />
     <PackageReference Include="UnitsNet" Version="4.101.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Devices\Displays\Themes\" />
   </ItemGroup>
 
 </Project>

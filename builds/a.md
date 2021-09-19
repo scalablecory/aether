@@ -9,7 +9,7 @@ This build uses the Qwiic (I<sup>2</sup>C system) to be very easy to piece toget
 Sensors can be left off if uninterested in their measurements.
 
 | Part | Cost (USD) | Description |
-| ---- | ---- | ----------- |
+| ---- | ---------- | ----------- |
 | [Raspberry Pi 4 Model B 2GB](https://www.sparkfun.com/products/15446) | $35 | Main board.
 | [16GB microSD card](https://www.sparkfun.com/products/15051) | $20 | SD card for Raspberry Pi OS.
 | [Sensirion SCD40](https://www.sparkfun.com/products/18365) | $50 | CO<sub>2</sub>, Relative Humidity, and Temperature sensor.

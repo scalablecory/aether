@@ -8,9 +8,9 @@ namespace Aether.Devices.Drivers
     /// <summary>
     /// A driver for TE's MS5637.
     /// </summary>
-    public sealed class MS5637 : IDisposable
+    public sealed class Ms5637 : System.IDisposable
     {
-        public const int DefaultAddress = 0x76;
+        public const int DefaultI2cAddress = 0x76;
 
         private readonly I2cDevice _device;
         private readonly ushort _c1, _c2, _c3, _c4, _c5, _c6;
@@ -19,7 +19,7 @@ namespace Aether.Devices.Drivers
         /// Instantiates a new <see cref="MS5637"/>.
         /// </summary>
         /// <param name="device">The I²C device to operate on.</param>
-        public MS5637(I2cDevice device)
+        public Ms5637(I2cDevice device)
         {
             _device = device;
 

@@ -8,7 +8,7 @@ namespace Aether.Devices.Simulated
         private uint _readData;
 
         public SimulatedMS5637()
-            : base(Drivers.MS5637.DefaultAddress)
+            : base(Drivers.Ms5637.DefaultI2cAddress)
         {
         }
 

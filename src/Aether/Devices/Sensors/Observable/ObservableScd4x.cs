@@ -2,24 +2,36 @@
 using Aether.Reactive;
 using System.Device.I2c;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using UnitsNet;
 
 namespace Aether.Devices.Sensors.Observable
 {
-    internal class ObservableSCD4x : ObservableSensor, IObservableI2cSensorFactory
+    internal class ObservableScd4x : ObservableSensor, IObservableI2cSensorFactory
     {
-        private readonly Drivers.SCD4x _sensor;
+        private readonly Drivers.Scd4x _sensor;
+        private readonly ReplaySubject<VolumeConcentration> _co2 = new(bufferSize: 1);
+        private readonly ReplaySubject<RelativeHumidity> _rh = new(bufferSize: 1);
+        private readonly ReplaySubject<Temperature> _t = new(bufferSize: 1);
         private readonly IEnumerable<ObservableSensor> _dependencies;
 
-        private ObservableSCD4x(I2cDevice device, IEnumerable<ObservableSensor> dependencies)
-            : base(Measure.CO2, Measure.Humidity, Measure.Temperature)
+        public override IObservable<VolumeConcentration> CO2 => _co2;
+        public override IObservable<RelativeHumidity> RelativeHumidity => _rh;
+        public override IObservable<Temperature> Temperature => _t;
+
+        private ObservableScd4x(I2cDevice device, IEnumerable<ObservableSensor> dependencies)
         {
-            _sensor = new Drivers.SCD4x(device);
+            _sensor = new Drivers.Scd4x(device);
             _dependencies = dependencies;
         }
 
-        protected override void DisposeCore() =>
+        protected override void DisposeCore()
+        {
             _sensor.Dispose();
+            _co2.Dispose();
+            _rh.Dispose();
+            _t.Dispose();
+        }
 
         protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
         {
@@ -28,7 +40,7 @@ namespace Aether.Devices.Sensors.Observable
 
             var pressureObserver = new ObservedValue<Pressure>();
             using IDisposable subscription = _dependencies
-                .Select(static dependency => dependency.BarometricPressure)
+                .Select(dependency => dependency.BarometricPressure)
                 .Merge()
                 .Subscribe(pressureObserver);
 
@@ -42,12 +54,12 @@ namespace Aether.Devices.Sensors.Observable
                         await Task.Delay(500).ConfigureAwait(false);
                     }
 
-                    (VolumeConcentration co2, RelativeHumidity humidity, Temperature temperature) =
+                    (VolumeConcentration? co2, RelativeHumidity? humidity, Temperature? temperature) =
                         _sensor.ReadPeriodicMeasurement();
 
-                    OnNextCO2(co2);
-                    OnNextRelativeHumidity(humidity);
-                    OnNextTemperature(temperature);
+                    if (co2 is not null) _co2.OnNext(co2.GetValueOrDefault());
+                    if (humidity is not null) _rh.OnNext(humidity.GetValueOrDefault());
+                    if (temperature is not null) _t.OnNext(temperature.GetValueOrDefault());
 
                     if (pressureObserver.TryGetValueIfChanged(out Pressure pressure))
                     {
@@ -61,9 +73,23 @@ namespace Aether.Devices.Sensors.Observable
             }
         }
 
+        protected override void OnError(Exception ex)
+        {
+            _co2.OnError(ex);
+            _rh.OnError(ex);
+            _t.OnError(ex);
+        }
+
+        protected override void OnCompleted()
+        {
+            _co2.OnCompleted();
+            _rh.OnCompleted();
+            _t.OnCompleted();
+        }
+
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => Drivers.SCD4x.DefaultAddress;
+        public static int DefaultAddress => Drivers.Scd4x.DefaultI2cAddress;
 
         public static string Manufacturer => "Sensirion";
 
@@ -84,7 +110,7 @@ namespace Aether.Devices.Sensors.Observable
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
         public static ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
-            new ObservableSCD4x(device, dependencies);
+            new ObservableScd4x(device, dependencies);
 
         #endregion
     }
