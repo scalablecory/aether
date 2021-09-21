@@ -1,17 +1,16 @@
-﻿using System.Buffers.Binary;
+﻿using SixLabors.ImageSharp;
+using System.Buffers.Binary;
 using System.Device.Gpio;
 using System.Device.Spi;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using L8 = SixLabors.ImageSharp.PixelFormats.L8;
 
 namespace Aether.Devices.Drivers
 {
-    internal sealed class WaveshareEPD2_9inV2 : System.IDisposable
+    internal sealed class WaveshareEPD2_9inV2 : BufferedDisplayDriver
     {
-        public const int Width = 128;
-        public const int Height = 296;
-        public const int BitsPerImage = Width * Height;
-        public const int BytesPerImage = BitsPerImage / 8;
-
         private static ReadOnlySpan<byte> s_driverOutputControlBytes => new byte[] { 0x27, 0x01, 0x00 };
         private static ReadOnlySpan<byte> s_dataEntryModeBytes => new byte[] { 0x03 };
         private static ReadOnlySpan<byte> s_displayUpdateControlBytes => new byte[] { 0x00, 0x80 };
@@ -44,6 +43,20 @@ namespace Aether.Devices.Drivers
         private readonly int _dcPinId;
         private readonly int _rstPinId;
         private readonly int _busyPinId;
+        private readonly byte[] _imageBuffer;
+
+        public override int Width => 296;
+        public override int Height => 128;
+        private int BitsPerImage => Width * Height;
+        private int BytesPerImage => BitsPerImage / 8;
+
+        public override int PositionGranularityX => 8;
+
+        public override int PositionGranularityY => 1;
+
+        public override float DpiX => 123;
+
+        public override float DpiY => 456;
 
         public WaveshareEPD2_9inV2(SpiDevice device, GpioController gpio, int dcPinId, int rstPinId, int busyPinId)
         {
@@ -52,13 +65,112 @@ namespace Aether.Devices.Drivers
             _dcPinId = dcPinId;
             _rstPinId = rstPinId;
             _busyPinId = busyPinId;
+            _imageBuffer = new byte[BytesPerImage];
         }
 
-        public void Dispose() =>
+        public override void Dispose() =>
             _device.Dispose();
 
-        public void SetImage(ReadOnlySpan<byte> buffer) =>
+        public override Image CreateImage(int width, int height) =>
+            new Image<L8>(width, height);
+
+        protected override void DrawImageCore(Image image, Point position, DrawOrientation orientation)
+        {
+            var img = (Image<L8>)image;
+            int width, height;
+
+            if (orientation == DrawOrientation.Landscape)
+            {
+                ConvertTo1bpp(_imageBuffer, img);
+                width = image.Width;
+                height = image.Height;
+            }
+            else
+            {
+                ConvertTo1bppRotated(_imageBuffer, img);
+                position = new Point(position.Y, position.X);
+                width = image.Height;
+                height = image.Width;
+            }
+
+            SetDisplayWindow((uint)position.X, (uint)position.Y, (uint)(position.X + width), (uint)(position.Y + height));
+            SetImage(_imageBuffer.AsSpan(image.Width * image.Height / 8));
+        }
+
+        private static void ConvertTo1bpp(Span<byte> dest, Image<L8> src)
+        {
+            ref byte rdest = ref MemoryMarshal.GetReference(dest);
+
+            for (int y = 0; y < src.Height; ++y)
+            {
+                Span<L8> row = src.GetPixelRowSpan(y);
+                
+                Debug.Assert(row.Length == src.Width);
+                Debug.Assert((row.Length % 8) == 0);
+
+                ref sbyte rsrc = ref Unsafe.As<L8, sbyte>(ref MemoryMarshal.GetReference(row));
+                ref sbyte rsrcEnd = ref Unsafe.Add(ref rsrc, row.Length);
+
+                do
+                {
+                    rdest =
+                        (byte)(
+                        (0b10000000 & ~(rsrc >> 7)) |
+                        (0b01000000 & ~(Unsafe.Add(ref rsrc, 1) >> 7)) |
+                        (0b00100000 & ~(Unsafe.Add(ref rsrc, 2) >> 7)) |
+                        (0b00010000 & ~(Unsafe.Add(ref rsrc, 3) >> 7)) |
+                        (0b00001000 & ~(Unsafe.Add(ref rsrc, 4) >> 7)) |
+                        (0b00000100 & ~(Unsafe.Add(ref rsrc, 5) >> 7)) |
+                        (0b00000010 & ~(Unsafe.Add(ref rsrc, 6) >> 7)) |
+                        (0b00000001 & ~(Unsafe.Add(ref rsrc, 7) >> 7))
+                        );
+
+                    rdest = ref Unsafe.Add(ref rdest, 1);
+                    rsrc = ref Unsafe.Add(ref rsrc, 8);
+                }
+                while (!Unsafe.AreSame(ref rsrc, ref rsrcEnd));
+            }
+            
+        }
+
+        private static void ConvertTo1bppRotated(Span<byte> dest, Image<L8> src)
+        {
+            for (int x = 0; x < src.Width; ++x)
+            {
+                for (int y = 0; y < src.Height; y += 8)
+                {
+                    dest[(x * src.Height + y) / 8] =
+                        (byte)(
+                        (0b10000000 & ~((sbyte)src[x, y].PackedValue >> 7)) |
+                        (0b01000000 & ~((sbyte)src[x, y + 1].PackedValue >> 7)) |
+                        (0b00100000 & ~((sbyte)src[x, y + 2].PackedValue >> 7)) |
+                        (0b00010000 & ~((sbyte)src[x, y + 3].PackedValue >> 7)) |
+                        (0b00001000 & ~((sbyte)src[x, y + 4].PackedValue >> 7)) |
+                        (0b00000100 & ~((sbyte)src[x, y + 5].PackedValue >> 7)) |
+                        (0b00000010 & ~((sbyte)src[x, y + 6].PackedValue >> 7)) |
+                        (0b00000001 & ~((sbyte)src[x, y + 7].PackedValue >> 7))
+                        );
+                }
+            }
+        }
+
+        public override void DisplayBuffer() =>
+            TurnOnDisplay();
+
+        private void SetImage(ReadOnlySpan<byte> buffer) =>
             SendCommand(0x24, buffer[..BytesPerImage]);
+
+        private void TurnOnDisplay()
+        {
+            // Display Update Control.
+            byte data = 0xC7;
+            SendCommand(0x22, MemoryMarshal.CreateReadOnlySpan(ref data, 1));
+
+            // Activate Display Update Sequence
+            SendCommand(0x20);
+
+            ReadBusy();
+        }
 
         private void Init()
         {
@@ -73,7 +185,7 @@ namespace Aether.Devices.Drivers
 
             SetDriverOutputControl();
             SetDataEntryMode();
-            SetDisplayWindow(0, 0, Width, Height);
+            SetDisplayWindow(0, 0, (uint)Width, (uint)Height);
             SetDisplayUpdateControl();
             SetCursor(0, 0);
 
