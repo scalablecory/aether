@@ -2,7 +2,7 @@
 
 Aether is an air quality monitoring software and device, Open Source and powered by .NET 6.
 
-This project is a WIP. Contributions welcome -- file issues or [contact me](https://github.com/scalablecory).
+This project is a WIP. Contributions welcome -- file issues for specific features or for [planning](planning/), PRs for accepted features/plans, or [contact me](https://github.com/scalablecory).
 
 ## Features / Ideas
 

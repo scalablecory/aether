@@ -1,6 +1,6 @@
 # Build A
 
-This build uses the Qwiic (I<sup>2</sup>C system) to be very easy to piece together. Parts are chosen to be plug and play, with no soldering required.
+This build uses the [Qwiic](https://www.sparkfun.com/qwiic) I<sup>2</sup>C wiring system to be very easy to piece together. Parts are chosen to be plug and play, with no soldering required.
 
 **Note: this build is a work in progress**
 
