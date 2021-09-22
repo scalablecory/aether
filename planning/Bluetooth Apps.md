@@ -7,3 +7,12 @@ The first, a PWA-enabled website, will use the still experimental Web Bluetooth 
 The second, a .NET MAUI app, will also use Bluetooth to talk to the Aether.
 
 These apps will provide real-time and historic charts, and be used to configure the device and run one-off commands against the sensors.
+
+# Bluetooth API
+
+The API/protocol over Bluetooth will need to provide:
+
+- Real-time data
+- Historic data, within some window of dates.
+- Configuration
+- TODO
