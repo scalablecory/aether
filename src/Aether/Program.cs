@@ -1,11 +1,9 @@
 ﻿using Aether.Devices.Sensors;
 using Aether.Devices.Sensors.Metadata;
-using Aether.Devices.Sensors.Observable;
 using Aether.Reactive;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Reactive.Linq;
-using UnitsNet;
 
 var listSensorCommand = new Command("list", "Lists available sensors")
 {
@@ -37,7 +35,7 @@ testi2cSensorCommand.Handler = CommandHandler.Create((string name, uint bus, uin
 
     return sensorInfo switch
     {
-        I2cSensorInfo i2c => i2c.OpenDevice((int)bus, (int)address, Enumerable.Empty<ObservableSensor>()),
+        I2cSensorInfo i2c => i2c.OpenDevice((int)bus, (int)address, Observable.Empty<Measurement>()),
         _ => throw new Exception("An I2C sensor by that name was not found.")
     };
 }));
@@ -52,7 +50,7 @@ simulateSensorCommand.Handler = CommandHandler.Create((string name) => RunAndPri
     SensorInfo sensorInfo = SensorInfo.Sensors.FirstOrDefault(x => x is I2cSensorInfo { CanSimulateSensor: true } && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
         ?? throw new Exception("A simulatable sensor by that name was not found.");
 
-    return sensorInfo.CreateSimulatedSensor(Enumerable.Empty<ObservableSensor>());
+    return sensorInfo.CreateSimulatedSensor(Observable.Empty<Measurement>());
 }));
 
 var rootCommand = new RootCommand()
@@ -71,14 +69,9 @@ var rootCommand = new RootCommand()
 await rootCommand.InvokeAsync(Environment.CommandLine);
 
 static Task RunAndPrintSensorAsync(Func<ObservableSensor> sensorFunc) =>
-    AetherObservable.AsyncUsing(sensorFunc,
-        sensor => Observable.Merge(
-            sensor.CO2.Select(x => (Measure.CO2, (IQuantity)x)),
-            sensor.Temperature.Select(x => (Measure.Temperature, (IQuantity)x)),
-            sensor.RelativeHumidity.Select(x => (Measure.Humidity, (IQuantity)x)),
-            sensor.BarometricPressure.Select(x => (Measure.Pressure, (IQuantity)x))))
+    AetherObservable.AsyncUsing(sensorFunc, sensor => sensor)
     .TakeUntil(AetherObservable.ConsoleCancelKeyPress)
-    .ForEachAsync(x =>
+    .ForEachAsync(measurement =>
     {
-        Console.WriteLine($"[{DateTime.Now:t}] {x.Item1}: {x.Item2}");
+        Console.WriteLine($"[{DateTime.Now:t}] {measurement}");
     });

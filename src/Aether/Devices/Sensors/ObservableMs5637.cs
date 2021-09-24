@@ -1,30 +1,20 @@
 ﻿using Aether.Devices.Sensors.Metadata;
 using System.Device.I2c;
-using System.Reactive.Subjects;
 using UnitsNet;
 
-namespace Aether.Devices.Sensors.Observable
+namespace Aether.Devices.Sensors
 {
     internal sealed class ObservableMs5637 : ObservableSensor, IObservableI2cSensorFactory, ISimulatedI2cDeviceFactory
     {
         private readonly Drivers.Ms5637 _sensor;
-        private readonly ReplaySubject<Pressure> _p = new(bufferSize: 1);
-        private readonly ReplaySubject<Temperature> _t = new(bufferSize: 1);
-
-        public override IObservable<Pressure> BarometricPressure => _p;
-        public override IObservable<Temperature> Temperature => _t;
 
         private ObservableMs5637(I2cDevice device)
         {
             _sensor = new Drivers.Ms5637(device);
         }
 
-        protected override void DisposeCore()
-        {
+        protected override void DisposeCore() =>
             _sensor.Dispose();
-            _p.Dispose();
-            _t.Dispose();
-        }
 
         protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
         {
@@ -36,21 +26,9 @@ namespace Aether.Devices.Sensors.Observable
                 (Temperature temperature, Pressure pressure) =
                     _sensor.ReadTemperatureAndPressure();
 
-                _t.OnNext(temperature);
-                _p.OnNext(pressure);
+                OnNextTemperature(temperature);
+                OnNextBarometricPressure(pressure);
             }
-        }
-
-        protected override void OnError(Exception ex)
-        {
-            _t.OnError(ex);
-            _p.OnError(ex);
-        }
-
-        protected override void OnCompleted()
-        {
-            _t.OnCompleted();
-            _p.OnCompleted();
         }
 
         #region IObservableI2CSensorFactory
@@ -65,14 +43,14 @@ namespace Aether.Devices.Sensors.Observable
 
         public static IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
-            new MeasureInfo(Measure.Pressure),
+            new MeasureInfo(Measure.BarometricPressure),
             new MeasureInfo(Measure.Temperature)
         };
 
         public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
+        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) =>
             new ObservableMs5637(device);
 
         public static I2cDevice CreateSimulatedI2cDevice() =>

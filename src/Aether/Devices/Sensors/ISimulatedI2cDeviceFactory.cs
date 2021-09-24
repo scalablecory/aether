@@ -1,6 +1,6 @@
 ﻿using System.Device.I2c;
 
-namespace Aether.Devices.Sensors.Observable
+namespace Aether.Devices.Sensors
 {
     internal interface ISimulatedI2cDeviceFactory
     {

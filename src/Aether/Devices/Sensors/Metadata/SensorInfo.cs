@@ -1,5 +1,4 @@
-﻿using Aether.Devices.Sensors.Observable;
-using System.Device.I2c;
+﻿using System.Device.I2c;
 
 namespace Aether.Devices.Sensors.Metadata
 {
@@ -27,7 +26,7 @@ namespace Aether.Devices.Sensors.Metadata
         public abstract IEnumerable<SensorCommand> Commands { get; }
 
         public abstract bool CanSimulateSensor { get; }
-        public abstract ObservableSensor CreateSimulatedSensor(IEnumerable<ObservableSensor> dependencies);
+        public abstract ObservableSensor CreateSimulatedSensor(IObservable<Measurement> dependencies);
 
         private class ConcreteI2CSensorInfo<T> : I2cSensorInfo
             where T : IObservableI2cSensorFactory
@@ -46,10 +45,10 @@ namespace Aether.Devices.Sensors.Metadata
 
             public override bool CanSimulateSensor => false;
 
-            public override ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
+            public override ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) =>
                 T.OpenSensor(device, dependencies);
 
-            public override ObservableSensor CreateSimulatedSensor(IEnumerable<ObservableSensor> dependencies) =>
+            public override ObservableSensor CreateSimulatedSensor(IObservable<Measurement> dependencies) =>
                 throw new NotImplementedException();
         }
 
@@ -58,7 +57,7 @@ namespace Aether.Devices.Sensors.Metadata
         {
             public override bool CanSimulateSensor => true;
 
-            public override ObservableSensor CreateSimulatedSensor(IEnumerable<ObservableSensor> dependencies)
+            public override ObservableSensor CreateSimulatedSensor(IObservable<Measurement> dependencies)
             {
                 I2cDevice device = T.CreateSimulatedI2cDevice();
                 try

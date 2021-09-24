@@ -2,36 +2,23 @@
 using Aether.Reactive;
 using System.Device.I2c;
 using System.Reactive.Linq;
-using System.Reactive.Subjects;
 using UnitsNet;
 
-namespace Aether.Devices.Sensors.Observable
+namespace Aether.Devices.Sensors
 {
     internal class ObservableScd4x : ObservableSensor, IObservableI2cSensorFactory
     {
         private readonly Drivers.Scd4x _sensor;
-        private readonly ReplaySubject<VolumeConcentration> _co2 = new(bufferSize: 1);
-        private readonly ReplaySubject<RelativeHumidity> _rh = new(bufferSize: 1);
-        private readonly ReplaySubject<Temperature> _t = new(bufferSize: 1);
-        private readonly IEnumerable<ObservableSensor> _dependencies;
+        private readonly IObservable<Measurement> _dependencies;
 
-        public override IObservable<VolumeConcentration> CO2 => _co2;
-        public override IObservable<RelativeHumidity> RelativeHumidity => _rh;
-        public override IObservable<Temperature> Temperature => _t;
-
-        private ObservableScd4x(I2cDevice device, IEnumerable<ObservableSensor> dependencies)
+        private ObservableScd4x(I2cDevice device, IObservable<Measurement> dependencies)
         {
             _sensor = new Drivers.Scd4x(device);
             _dependencies = dependencies;
         }
 
-        protected override void DisposeCore()
-        {
+        protected override void DisposeCore() =>
             _sensor.Dispose();
-            _co2.Dispose();
-            _rh.Dispose();
-            _t.Dispose();
-        }
 
         protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
         {
@@ -39,9 +26,9 @@ namespace Aether.Devices.Sensors.Observable
             using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
 
             var pressureObserver = new ObservedValue<Pressure>();
-            using IDisposable subscription = _dependencies
-                .Select(dependency => dependency.BarometricPressure)
-                .Merge()
+            using IDisposable pressureSubscription = _dependencies
+                .Where(m => m.Measure == Measure.BarometricPressure)
+                .Select(m => m.BarometricPressure)
                 .Subscribe(pressureObserver);
 
             _sensor.StartPeriodicMeasurements();
@@ -57,9 +44,9 @@ namespace Aether.Devices.Sensors.Observable
                     (VolumeConcentration? co2, RelativeHumidity? humidity, Temperature? temperature) =
                         _sensor.ReadPeriodicMeasurement();
 
-                    if (co2 is not null) _co2.OnNext(co2.GetValueOrDefault());
-                    if (humidity is not null) _rh.OnNext(humidity.GetValueOrDefault());
-                    if (temperature is not null) _t.OnNext(temperature.GetValueOrDefault());
+                    if (co2 is not null) OnNextCo2(co2.GetValueOrDefault());
+                    if (humidity is not null) OnNextRelativeHumidity(humidity.GetValueOrDefault());
+                    if (temperature is not null) OnNextTemperature(temperature.GetValueOrDefault());
 
                     if (pressureObserver.TryGetValueIfChanged(out Pressure pressure))
                     {
@@ -71,20 +58,6 @@ namespace Aether.Devices.Sensors.Observable
             {
                 _sensor.StopPeriodicMeasurements();
             }
-        }
-
-        protected override void OnError(Exception ex)
-        {
-            _co2.OnError(ex);
-            _rh.OnError(ex);
-            _t.OnError(ex);
-        }
-
-        protected override void OnCompleted()
-        {
-            _co2.OnCompleted();
-            _rh.OnCompleted();
-            _t.OnCompleted();
         }
 
         #region IObservableI2CSensorFactory
@@ -109,7 +82,7 @@ namespace Aether.Devices.Sensors.Observable
         // TODO: self-calibration command.
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IEnumerable<ObservableSensor> dependencies) =>
+        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) =>
             new ObservableScd4x(device, dependencies);
 
         #endregion

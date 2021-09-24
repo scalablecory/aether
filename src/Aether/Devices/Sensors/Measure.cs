@@ -4,6 +4,8 @@ namespace Aether.Devices.Sensors
 {
     internal enum Measure
     {
+        None,
+
         /// <summary>
         /// Corresponds to a <see cref="RelativeHumidity"/>.
         /// </summary>
@@ -22,6 +24,6 @@ namespace Aether.Devices.Sensors
         /// <summary>
         /// Corresponds to a <see cref="UnitsNet.Pressure"/>.
         /// </summary>
-        Pressure
+        BarometricPressure
     }
 }

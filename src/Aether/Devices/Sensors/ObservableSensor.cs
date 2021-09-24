@@ -3,30 +3,18 @@ using System.Diagnostics.CodeAnalysis;
 using System.Reactive.Subjects;
 using System.Runtime.CompilerServices;
 using UnitsNet;
-using O = System.Reactive.Linq.Observable;
 
-namespace Aether.Devices.Sensors.Observable
+namespace Aether.Devices.Sensors
 {
     /// <summary>
     /// A sensor which takes periodic measurements and can run commands.
     /// </summary>
-    internal abstract class ObservableSensor : IAsyncDisposable
+    internal abstract class ObservableSensor : IObservable<Measurement>, IAsyncDisposable
     {
+        private readonly Subject<Measurement> _measurements = new Subject<Measurement>();
         private readonly CancellationTokenSource _cts = new();
         private readonly Task _task;
         private TaskCompletionSource? _startTaskTcs = new();
-
-        public virtual IObservable<RelativeHumidity> RelativeHumidity =>
-            O.Empty<RelativeHumidity>();
-
-        public virtual IObservable<Temperature> Temperature =>
-            O.Empty<Temperature>();
-
-        public virtual IObservable<VolumeConcentration> CO2 =>
-            O.Empty<VolumeConcentration>();
-
-        public virtual IObservable<Pressure> BarometricPressure =>
-            O.Empty<Pressure>();
 
         protected ObservableSensor()
         {
@@ -70,11 +58,11 @@ namespace Aether.Devices.Sensors.Observable
             }
             catch (Exception ex)
             {
-                OnError(ex);
+                _measurements.OnError(ex);
                 return;
             }
 
-            OnCompleted();
+            _measurements.OnCompleted();
         }
 
         /// <summary>
@@ -101,7 +89,19 @@ namespace Aether.Devices.Sensors.Observable
         protected virtual ValueTask<object?> RunCommandAsyncCore(SensorCommand command, object?[]? parameters, CancellationToken cancellationToken) =>
             throw new NotImplementedException();
 
-        protected abstract void OnError(Exception ex);
-        protected abstract void OnCompleted();
+        public IDisposable Subscribe(IObserver<Measurement> observer) =>
+            _measurements.Subscribe(observer);
+
+        protected void OnNextRelativeHumidity(RelativeHumidity h) =>
+            _measurements.OnNext(Measurement.FromRelativeHumidity(h));
+
+        protected void OnNextTemperature(Temperature t) =>
+            _measurements.OnNext(Measurement.FromTemperature(t));
+
+        protected void OnNextCo2(VolumeConcentration co2) =>
+            _measurements.OnNext(Measurement.FromCo2(co2));
+
+        protected void OnNextBarometricPressure(Pressure p) =>
+            _measurements.OnNext(Measurement.FromPressure(p));
     }
 }

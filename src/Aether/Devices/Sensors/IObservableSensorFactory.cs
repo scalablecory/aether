@@ -1,6 +1,6 @@
 ﻿using Aether.Devices.Sensors.Metadata;
 
-namespace Aether.Devices.Sensors.Observable
+namespace Aether.Devices.Sensors
 {
     internal interface IObservableSensorFactory
     {
