@@ -32,7 +32,7 @@ Aether could use contributions for:
 - General .NET dev (C#).
 - 3D modeling for case design.
 
-> If you are a Microsoft employee, Aether is participating in [Hackathon 2021](Hackathon%202021.md). Please sign up at [The Garage](https://garagehackbox.azurewebsites.net/hackathons/2356/projects/105003).
+> If you are a Microsoft employee, Aether is participating in [Hackathon 2021](planning/Hackathon%202021.md). Please sign up at [The Garage](https://garagehackbox.azurewebsites.net/hackathons/2356/projects/105003).
 
 ## Hardware Support (Planned)
 
