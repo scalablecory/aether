@@ -1,5 +1,5 @@
 {
-  "name": "Aether",
+  "name": "aether",
   "version": "0.0.1",
   "private": true,
   "scripts": {
@@ -11,7 +11,8 @@
   },
   "dependencies": {
     "react": "17.0.2",
-    "react-native": "0.65.1"
+    "react-native": "0.65.1",
+    "react-native-ble-manager": "^7.6.2"
   },
   "devDependencies": {
     "@babel/core": "7.15.5",
