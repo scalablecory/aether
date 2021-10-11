@@ -83,19 +83,5 @@ namespace Aether.Devices.Drivers
             _device.WriteByte(0x15);
             Thread.Sleep(1);
         }
-
-        /// <summary>
-        /// Reads relative humidity and temperature.
-        /// </summary>
-        /// <returns>
-        /// A tuple of relative humidity and temperature.
-        /// If a CRC check failed for a measurement, it will be <see langword="null"/>.
-        /// </returns>
-        public (RelativeHumidity? RelativeHumidity, Temperature? Temperature) ReadHumidityAndTemperature(Sht4xRepeatability repeatability = Sht4xRepeatability.High)
-        {
-            TimeSpan delay = BeginReadHumidityAndTemperature(repeatability);
-            Thread.Sleep(delay);
-            return EndReadHumidityAndTemperature();
-        }
     }
 }
