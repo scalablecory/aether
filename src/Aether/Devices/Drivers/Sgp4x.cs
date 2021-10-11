@@ -57,7 +57,7 @@ namespace Aether.Devices.Drivers
             Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(2, 3), 32768);
             writeBuffer[5] = 0xA2;
 
-            //Write default temperature value + CRC (0x66, 0x66, [CRC], 0x93)
+            // Write default temperature value + CRC (0x66, 0x66, [CRC], 0x93)
             Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(6, 3), 26214);
             writeBuffer[9] = 0x93;
 
