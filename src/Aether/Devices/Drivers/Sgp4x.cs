@@ -44,11 +44,11 @@ namespace Aether.Devices.Drivers
         /// <returns>The serial number of the device.</returns>
         public ReadOnlySpan<byte> GetSerialNumber()
         {
+            Span<byte> getSerialNumberCommand = stackalloc byte[2] { 0x36, 0x82 };
             Span<byte> serialNumberWithCRC = stackalloc byte[9];
 
             // Write get serial number command
-            _device.WriteByte(0x36);
-            _device.WriteByte(0x82);
+            _device.Write(getSerialNumberCommand);
 
             Thread.Sleep(1);
 
@@ -80,15 +80,17 @@ namespace Aether.Devices.Drivers
         /// <returns>True if all tests passed. False if one or more tests failed.</returns>
         public bool RunSelfTest()
         {
+            Span<byte> runSelfTestCommand = stackalloc byte[2] { 0x28, 0x0E };
             Span<byte> testResultWithCRC = stackalloc byte[3];
 
             // Write run self test command
-            _device.WriteByte(0x28);
-            _device.WriteByte(0x0E);
+            _device.Write(runSelfTestCommand);
 
             Thread.Sleep(320);
 
             // Read test result data
+            _device.Read(testResultWithCRC);
+
             Sensirion.ReadUInt16BigEndianAndCRC8(testResultWithCRC);
 
             // Check result status (Most significant byte, ignore least significant non-crc byte)
@@ -102,10 +104,9 @@ namespace Aether.Devices.Drivers
         /// </summary>
         /// <param name="relativeHumidityValue">The relative humidity value expressed as a percentage.</param>
         /// <param name="temperatureValue">The temperature value expressed in degrees celsius.</param>
-        /// <param name="disableHotPlate">If true, the hot plate will be disabled after measurements are taken.</param>
         /// <returns>The raw VOC measurement value from the sensor. If an error occurred, it will be <see langword="null"/>.</returns>
         /// <remarks>If default relative humidity and temperature values are supplied, humidity compensation will be disabled.</remarks>
-        public ushort? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25, bool disableHotPlate = true)
+        public ushort? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25)
         {
             if (relativeHumidityValue > 100)
             {
@@ -139,12 +140,6 @@ namespace Aether.Devices.Drivers
 
             _device.Read(readBuffer);
 
-            // Disable hot plate if instructed
-            if (disableHotPlate)
-            {
-                DisableHotPlate();
-            }
-
             // Read the results and validate CRC
             return Sensirion.ReadUInt16BigEndianAndCRC8(readBuffer);
         }
@@ -154,8 +149,8 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void DisableHotPlate()
         {
-            _device.WriteByte(0x36);
-            _device.WriteByte(0x15);
+            Span<byte> disableHotPlateCommand = stackalloc byte[2] { 0x36, 0x15 };
+            _device.Write(disableHotPlateCommand);
             Thread.Sleep(1);
         }
     }
