@@ -42,7 +42,7 @@ namespace Aether.Devices.Sensors
             new Measurement(co2.Value, (int)co2.Unit, Measure.CO2);
 
         public static Measurement FromPressure(Pressure p) =>
-            new Measurement(p.Value, (int)p.Unit, Measure.Humidity);
+            new Measurement(p.Value, (int)p.Unit, Measure.BarometricPressure);
 
         public override string ToString() => Measure switch
         {

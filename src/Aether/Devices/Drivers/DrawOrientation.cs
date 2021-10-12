@@ -2,7 +2,7 @@
 {
     internal enum DrawOrientation
     {
-        Landscape,
-        Portrait
+        Default,
+        Rotate90
     }
 }

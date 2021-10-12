@@ -1,9 +1,13 @@
-﻿using Aether.Devices.Sensors;
+﻿using Aether.Devices.Displays.Themes;
+using Aether.Devices.Sensors;
 using Aether.Devices.Sensors.Metadata;
+using Aether.Devices.Simulated;
 using Aether.Reactive;
 using System.CommandLine;
 using System.CommandLine.Invocation;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
+using UnitsNet;
 
 var listSensorCommand = new Command("list", "Lists available sensors")
 {
@@ -53,6 +57,24 @@ simulateSensorCommand.Handler = CommandHandler.Create((string name) => RunAndPri
     return sensorInfo.CreateSimulatedSensor(Observable.Empty<Measurement>());
 }));
 
+// Temporary command to test the theme.
+// TODO: Make this more like a list/test format similar to sensor.
+var themeTestCommand = new Command("theme-test", "Tests a theme.");
+themeTestCommand.Handler = CommandHandler.Create(() =>
+{
+    var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature };
+
+    using var driver = new SimulatedDisplayDriver("out", 296, 128, 112.399461802960f, 111.917383820998f);
+    using var sub = new Subject<Measurement>();
+    using IDisposable theme = MultiLineTheme.CreateTheme(driver, lines, sub);
+
+    sub.OnNext(Measurement.FromCo2(VolumeConcentration.FromPartsPerMillion(4312.25)));
+    sub.OnNext(Measurement.FromRelativeHumidity(RelativeHumidity.FromPercent(59.1)));
+    sub.OnNext(Measurement.FromPressure(Pressure.FromAtmospheres(1.04)));
+    sub.OnNext(Measurement.FromTemperature(Temperature.FromDegreesFahrenheit(65.2)));
+    sub.OnCompleted();
+});
+
 var rootCommand = new RootCommand()
 {
     new Command("sensor", "Operates on sensors")
@@ -63,7 +85,8 @@ var rootCommand = new RootCommand()
             testi2cSensorCommand,
         },
         simulateSensorCommand
-    }
+    },
+    themeTestCommand
 };
 
 await rootCommand.InvokeAsync(Environment.CommandLine);

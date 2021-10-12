@@ -34,10 +34,6 @@ namespace Aether.Devices.Sensors
 
         protected abstract void DisposeCore();
 
-        [DoesNotReturn]
-        private static void ThrowInvalidOnNext([CallerMemberName] string? methodName = null) =>
-            throw new InvalidOperationException($"Call to {methodName} is not valid; measure not specified in {nameof(ObservableSensor)} constructor.");
-
         protected void Start() =>
             Interlocked.Exchange(ref _startTaskTcs, null)?.TrySetResult();
 

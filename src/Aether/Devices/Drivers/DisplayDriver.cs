@@ -9,9 +9,9 @@ namespace Aether.Devices.Drivers
         public abstract float DpiX { get; }
         public abstract float DpiY { get; }
 
-        public abstract Image CreateImage();
+        public abstract Image CreateImage(DrawOrientation orientation = DrawOrientation.Default);
 
-        public abstract void DisplayImage(Image image, DrawOrientation orientation = DrawOrientation.Landscape);
+        public abstract void DisplayImage(Image image, DrawOrientation orientation = DrawOrientation.Default);
 
         public abstract void Dispose();
     }

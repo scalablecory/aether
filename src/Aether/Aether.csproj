@@ -22,4 +22,10 @@
     <PackageReference Include="UnitsNet" Version="4.101.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="fonts\Manrope-Regular.ttf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
