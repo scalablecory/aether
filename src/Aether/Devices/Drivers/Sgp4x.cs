@@ -46,7 +46,7 @@ namespace Aether.Devices.Drivers
         {
             Span<byte> serialNumberWithCRC = stackalloc byte[9];
 
-            // Transmit command
+            // Write get serial number command
             _device.WriteByte(0x36);
             _device.WriteByte(0x82);
 
@@ -75,14 +75,14 @@ namespace Aether.Devices.Drivers
         }
 
         /// <summary>
-        /// Runs the sensors self test.
+        /// Runs a self test on the device.
         /// </summary>
         /// <returns>True if all tests passed. False if one or more tests failed.</returns>
         public bool RunSelfTest()
         {
             Span<byte> testResultWithCRC = stackalloc byte[3];
 
-            // Transmit command
+            // Write run self test command
             _device.WriteByte(0x28);
             _device.WriteByte(0x0E);
 
@@ -98,13 +98,13 @@ namespace Aether.Devices.Drivers
         }
 
         /// <summary>
-        /// Gets the raw VOC measurements from the sensor.
+        /// Gets the raw VOC measurements from the device.
         /// </summary>
         /// <param name="relativeHumidityValue">The relative humidity value expressed as a percentage.</param>
         /// <param name="temperatureValue">The temperature value expressed in degrees celsius.</param>
         /// <param name="disableHotPlate">If true, the hot plate will be disabled after measurements are taken.</param>
         /// <returns>The raw VOC measurement value from the sensor. If an error occurred, it will be <see langword="null"/>.</returns>
-        /// <remarks>If default values are supplied, humidity compensation will be disabled.</remarks>
+        /// <remarks>If default relative humidity and temperature values are supplied, humidity compensation will be disabled.</remarks>
         public ushort? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25, bool disableHotPlate = true)
         {
             if (relativeHumidityValue > 100)
@@ -120,7 +120,7 @@ namespace Aether.Devices.Drivers
             Span<byte> writeBuffer = stackalloc byte[10];
             Span<byte> readBuffer = stackalloc byte[3];
 
-            // Write start measure VOC raw
+            // Write start measure VOC raw command
             writeBuffer[0] = 0x26;
             writeBuffer[1] = 0x0F;
 
