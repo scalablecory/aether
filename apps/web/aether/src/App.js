@@ -1,23 +1,20 @@
-import logo from './logo.svg';
-import './App.css';
+import GaugeChart from "react-gauge-chart";
+import AirQualityTable from "./components/AirQualityTable";
+import "./App.css";
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="app">
+      <h1>Aether</h1>
+      <GaugeChart
+        id="gauge-chart6"
+        animate={false}
+        nrOfLevels={6}
+        percent={0.56}
+        needleColor="#345243"
+        colors={["green", "yellow", "orange", "red", "purple", "maroon"]}
+      />
+      <AirQualityTable />
     </div>
   );
 }

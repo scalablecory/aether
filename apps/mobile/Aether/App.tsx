@@ -10,7 +10,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TouchableHighlight,
   View,
   TouchableOpacity,
 } from 'react-native';
@@ -66,7 +65,7 @@ const App: React.FC = () => {
   const renderItem = (item: BlePeripheral) => {
     const color = item.connected ? 'green' : '#fff';
     return (
-      <TouchableHighlight
+      <TouchableOpacity
         style={styles.device}
         onPress={() => BluetoothService.testPeripheral(item)}>
         <View style={[styles.deviceInfo, {backgroundColor: color}]}>
@@ -76,7 +75,7 @@ const App: React.FC = () => {
             source={require('./assets/BLE.png')}
           />
         </View>
-      </TouchableHighlight>
+      </TouchableOpacity>
     );
   };
 
