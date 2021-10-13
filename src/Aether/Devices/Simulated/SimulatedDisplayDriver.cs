@@ -26,21 +26,13 @@ namespace Aether.Devices.Simulated
             DpiY = dpiY;
         }
 
-        public override Image CreateImage(DrawOrientation orientation = DrawOrientation.Default)
-        {
-            (int width, int height) = orientation switch
-            {
-                DrawOrientation.Default => (Width, Height),
-                DrawOrientation.Rotate90 => (Height, Width),
-                _ => throw new ArgumentOutOfRangeException(nameof(orientation), $"{nameof(orientation)} is not a valid {nameof(DrawOrientation)} value.")
-            };
-
-            return new Image<SixLabors.ImageSharp.PixelFormats.Rgb24>(width, height);
-        }
+        protected override Image CreateImageCore(int width, int height) =>
+            new Image<SixLabors.ImageSharp.PixelFormats.Rgb24>(width, height);
 
         public override void DisplayImage(Image image, DrawOrientation orientation = DrawOrientation.Default)
         {
-            string filePath = "image-" + Interlocked.Increment(ref _counter).ToString(CultureInfo.InvariantCulture) + ".png";
+            int imageId = Interlocked.Increment(ref _counter);
+            string filePath = string.Create(CultureInfo.InvariantCulture, $"image-{imageId}.png");
             filePath = Path.Combine(_imageDirectoryPath, filePath);
 
             image.SaveAsPng(filePath);

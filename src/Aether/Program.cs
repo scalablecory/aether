@@ -1,13 +1,55 @@
-﻿using Aether.Devices.Displays.Themes;
+﻿using Aether.Devices.Drivers;
 using Aether.Devices.Sensors;
 using Aether.Devices.Sensors.Metadata;
 using Aether.Devices.Simulated;
 using Aether.Reactive;
+using Aether.Themes;
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Device.Gpio;
+using System.Device.I2c;
+using System.Device.Spi;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using UnitsNet;
+
+var runDeviceCommand = new Command("run-device", "Runs an Aether device");
+runDeviceCommand.Handler = CommandHandler.Create(async () =>
+{
+    // Initialize display.
+    var spiConfig = new System.Device.Spi.SpiConnectionSettings(0, 0)
+    {
+        ClockFrequency = 10000000
+    };
+    using var gpio = new GpioController(PinNumberingScheme.Logical);
+    using SpiDevice displayDevice = SpiDevice.Create(spiConfig);
+    using var displayDriver = new WaveshareEPD2_9inV2(displayDevice, gpio, dcPinId: 25, rstPinId: 17, busyPinId: 24);
+
+    // Initialize MS5637.
+    using I2cDevice ms5637Device = I2cDevice.Create(new I2cConnectionSettings(1, ObservableMs5637.DefaultAddress));
+    await using ObservableSensor ms5637Driver = ObservableMs5637.OpenSensor(ms5637Device, dependencies: Observable.Empty<Measurement>());
+
+    // Initialize SCD4x, taking a dependency on MS5637 for calibration with barometric pressure.
+    using I2cDevice scd4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableScd4x.DefaultAddress));
+    await using ObservableSensor scdDriver = ObservableScd4x.OpenSensor(scd4xDevice, dependencies: ms5637Driver);
+
+    // All the measurements funnel through here.
+    IObservable<Measurement> measurements = Observable.Merge(ms5637Driver, scdDriver);
+
+    // Initialize the theme, which takes all the measurements and renders them to a display.
+    var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature };
+    using IDisposable theme = MultiLineTheme.CreateTheme(displayDriver, lines, measurements);
+
+    // Wait for Ctrl+C to exit.
+    var tcs = new TaskCompletionSource();
+    Console.CancelKeyPress += (s, e) =>
+    {
+        Console.WriteLine("Closing...");
+        e.Cancel = true;
+        tcs.TrySetResult();
+    };
+    await tcs.Task;
+});
 
 var listSensorCommand = new Command("list", "Lists available sensors")
 {
@@ -75,8 +117,35 @@ themeTestCommand.Handler = CommandHandler.Create(() =>
     sub.OnCompleted();
 });
 
+// Temporary command to test the display.
+// TODO: Make this more like a list/test format similar to sensor.
+var displayTestCommand = new Command("display-test", "Tests a display.");
+displayTestCommand.Handler = CommandHandler.Create(() =>
+{
+    var spiConfig = new System.Device.Spi.SpiConnectionSettings(0, 0)
+    {
+        ClockFrequency = 10000000
+    };
+
+    var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature };
+
+    using var gpio = new GpioController(PinNumberingScheme.Logical);
+    using SpiDevice device = SpiDevice.Create(spiConfig);
+    using var driver = new WaveshareEPD2_9inV2(device, gpio, dcPinId: 25, rstPinId: 17, busyPinId: 24);
+
+    using var sub = new Subject<Measurement>();
+    using IDisposable theme = MultiLineTheme.CreateTheme(driver, lines, sub);
+
+    sub.OnNext(Measurement.FromCo2(VolumeConcentration.FromPartsPerMillion(4312.25)));
+    sub.OnNext(Measurement.FromRelativeHumidity(RelativeHumidity.FromPercent(59.1)));
+    sub.OnNext(Measurement.FromPressure(Pressure.FromAtmospheres(1.04)));
+    sub.OnNext(Measurement.FromTemperature(Temperature.FromDegreesFahrenheit(65.2)));
+    sub.OnCompleted();
+});
+
 var rootCommand = new RootCommand()
 {
+    runDeviceCommand,
     new Command("sensor", "Operates on sensors")
     {
         listSensorCommand,
@@ -86,7 +155,8 @@ var rootCommand = new RootCommand()
         },
         simulateSensorCommand
     },
-    themeTestCommand
+    themeTestCommand,
+    displayTestCommand
 };
 
 await rootCommand.InvokeAsync(Environment.CommandLine);
