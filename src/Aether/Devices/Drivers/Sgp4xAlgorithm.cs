@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-
-namespace Aether.Devices.Drivers
+﻿namespace Aether.Devices.Drivers
 {
     using fix16_t = Int32;
-    
+
 
     internal class Sgp4xAlgorithm
     {
@@ -39,8 +32,8 @@ namespace Aether.Devices.Drivers
         const double VocAlgorithm_PERSISTENCE_UPTIME_GAMMA = 3 * 3600;
         const double VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING = 64;
         const double VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__FIX16_MAX = 32767;
-        
-        
+
+
         internal struct VocAlgorithmParams
         {
             public int mVoc_Index_Offset;
@@ -122,7 +115,7 @@ namespace Aether.Devices.Drivers
         /*!< fix16_t value of 1 */
         const int FIX16_ONE = 0x00010000;
 
-        static fix16_t F16 (double x) => (fix16_t)(((x) >= 0) ? ((x) * 65536.0 + 0.5) : ((x) * 65536.0 - 0.5));
+        static fix16_t F16(double x) => (fix16_t)(((x) >= 0) ? ((x) * 65536.0 + 0.5) : ((x) * 65536.0 - 0.5));
 
         static fix16_t fix16_from_int(int a)
         {
@@ -131,7 +124,7 @@ namespace Aether.Devices.Drivers
 
         static int fix16_cast_to_int(fix16_t a)
         {
-            
+
             return (a >= 0) ? (a >> 16) : -((-a) >> 16);
         }
 
@@ -171,7 +164,7 @@ namespace Aether.Devices.Drivers
                 {
                     return (fix16_t)FIX16_OVERFLOW;
                 }
-                
+
 #endif
 
 #if FIXMATH_NO_ROUNDING
@@ -209,7 +202,7 @@ namespace Aether.Devices.Drivers
                 {
                     return (fix16_t)FIX16_MINIMUM;
                 }
-               
+
 
             uint remainder = (uint)((a >= 0) ? a : (-a));
             uint divider = (uint)((b >= 0) ? b : (-b));
@@ -278,7 +271,7 @@ namespace Aether.Devices.Drivers
                     {
                         return (fix16_t)FIX16_OVERFLOW;
                     }
-                    
+
 #endif
 
                 result = -result;
@@ -286,7 +279,7 @@ namespace Aether.Devices.Drivers
 
             return result;
         }
-        
+
         /*! Returns the square root of the given fix16_t. */
         static fix16_t fix16_sqrt(fix16_t x)
         {
@@ -360,12 +353,12 @@ namespace Aether.Devices.Drivers
         static fix16_t fix16_exp(fix16_t x)
         {
             // Function to approximate exp(); optimized more for code size than speed
-            
+
             // exp(x) for x = +/- {1, 1/8, 1/64, 1/512}
             const int NUM_EXP_VALUES = 4;
-            fix16_t[] exp_pos_values = new fix16_t[NUM_EXP_VALUES] { F16(2.7182818), F16(1.1331485), F16(1.0157477), F16(1.0019550)};
-            fix16_t[] exp_neg_values = new fix16_t[NUM_EXP_VALUES] { F16(0.3678794), F16(0.8824969), F16(0.9844964), F16(0.9980488)};
-            
+            fix16_t[] exp_pos_values = new fix16_t[NUM_EXP_VALUES] { F16(2.7182818), F16(1.1331485), F16(1.0157477), F16(1.0019550) };
+            fix16_t[] exp_neg_values = new fix16_t[NUM_EXP_VALUES] { F16(0.3678794), F16(0.8824969), F16(0.9844964), F16(0.9980488) };
+
             fix16_t[] exp_values;
 
             fix16_t res, arg;
@@ -400,7 +393,7 @@ namespace Aether.Devices.Drivers
             return res;
         }
 
-        
+
         void VocAlgorithm_init(VocAlgorithmParams algoParams)
         {
 
@@ -411,33 +404,33 @@ namespace Aether.Devices.Drivers
             algoParams.mUptime = F16(0);
             algoParams.mSraw = F16(0);
             algoParams.mVoc_Index = 0;
-            VocAlgorithm__init_instances (algoParams);
+            VocAlgorithm__init_instances(algoParams);
         }
 
         static void VocAlgorithm__init_instances(VocAlgorithmParams algoParams)
         {
 
-            VocAlgorithm__mean_variance_estimator__init (algoParams);
-            VocAlgorithm__mean_variance_estimator__set_parameters (
+            VocAlgorithm__mean_variance_estimator__init(algoParams);
+            VocAlgorithm__mean_variance_estimator__set_parameters(
                 algoParams, algoParams.mSraw_Std_Initial, algoParams.mTau_Mean_Variance_Hours,
                 algoParams.mGating_Max_Duration_Minutes);
-            VocAlgorithm__mox_model__init (algoParams);
-            VocAlgorithm__mox_model__set_parameters (
+            VocAlgorithm__mox_model__init(algoParams);
+            VocAlgorithm__mox_model__set_parameters(
                 algoParams, VocAlgorithm__mean_variance_estimator__get_std(algoParams),
-        VocAlgorithm__mean_variance_estimator__get_mean (algoParams));
-            VocAlgorithm__sigmoid_scaled__init (algoParams);
-            VocAlgorithm__sigmoid_scaled__set_parameters (algoParams,
+        VocAlgorithm__mean_variance_estimator__get_mean(algoParams));
+            VocAlgorithm__sigmoid_scaled__init(algoParams);
+            VocAlgorithm__sigmoid_scaled__set_parameters(algoParams,
                                                          algoParams.mVoc_Index_Offset);
-            VocAlgorithm__adaptive_lowpass__init (algoParams);
-            VocAlgorithm__adaptive_lowpass__set_parameters (algoParams);
+            VocAlgorithm__adaptive_lowpass__init(algoParams);
+            VocAlgorithm__adaptive_lowpass__set_parameters(algoParams);
         }
 
         void VocAlgorithm_get_states(VocAlgorithmParams algoParams, out int state0,
                                      out int state1)
         {
 
-            state0 = VocAlgorithm__mean_variance_estimator__get_mean (algoParams);
-            state1 = VocAlgorithm__mean_variance_estimator__get_std (algoParams);
+            state0 = VocAlgorithm__mean_variance_estimator__get_mean(algoParams);
+            state1 = VocAlgorithm__mean_variance_estimator__get_std(algoParams);
             return;
         }
 
@@ -445,7 +438,7 @@ namespace Aether.Devices.Drivers
                                      int state1)
         {
 
-            VocAlgorithm__mean_variance_estimator__set_states (
+            VocAlgorithm__mean_variance_estimator__set_states(
                 algoParams, state0, state1, F16(VocAlgorithm_PERSISTENCE_UPTIME_GAMMA));
             algoParams.mSraw = state0;
         }
@@ -461,15 +454,16 @@ namespace Aether.Devices.Drivers
             algoParams.mTau_Mean_Variance_Hours = (fix16_from_int(learning_time_hours));
             algoParams.mGating_Max_Duration_Minutes = (fix16_from_int(gating_max_duration_minutes));
             algoParams.mSraw_Std_Initial = (fix16_from_int(std_initial));
-            VocAlgorithm__init_instances (algoParams);
+            VocAlgorithm__init_instances(algoParams);
         }
 
         void VocAlgorithm_process(VocAlgorithmParams algoParams, int sraw, out int voc_index)
         {
 
-            if ((algoParams.mUptime <= F16(VocAlgorithm_INITIAL_BLACKOUT))) {
-                algoParams.mUptime = (algoParams.mUptime +F16(VocAlgorithm_SAMPLING_INTERVAL));
-            } 
+            if ((algoParams.mUptime <= F16(VocAlgorithm_INITIAL_BLACKOUT)))
+            {
+                algoParams.mUptime = (algoParams.mUptime + F16(VocAlgorithm_SAMPLING_INTERVAL));
+            }
             else
             {
                 if (((sraw > 0) && (sraw < 65000)))
@@ -487,7 +481,7 @@ namespace Aether.Devices.Drivers
                 algoParams.mVoc_Index = VocAlgorithm__mox_model__process(algoParams, algoParams.mSraw);
                 algoParams.mVoc_Index = VocAlgorithm__sigmoid_scaled__process(algoParams, algoParams.mVoc_Index);
                 algoParams.mVoc_Index = VocAlgorithm__adaptive_lowpass__process(algoParams, algoParams.mVoc_Index);
-                if (algoParams.mVoc_Index < F16(0.5)) 
+                if (algoParams.mVoc_Index < F16(0.5))
                 {
                     algoParams.mVoc_Index = F16(0.5);
                 }
@@ -514,7 +508,7 @@ namespace Aether.Devices.Drivers
             VocAlgorithm__mean_variance_estimator___sigmoid__init(algoParams);
         }
 
-        static void VocAlgorithm__mean_variance_estimator__set_parameters(VocAlgorithmParams algoParams, fix16_t std_initial,fix16_t tau_mean_variance_hours, fix16_t gating_max_duration_minutes)
+        static void VocAlgorithm__mean_variance_estimator__set_parameters(VocAlgorithmParams algoParams, fix16_t std_initial, fix16_t tau_mean_variance_hours, fix16_t gating_max_duration_minutes)
         {
 
             algoParams.m_Mean_Variance_Estimator__Gating_Max_Duration_Minutes = gating_max_duration_minutes;
@@ -567,23 +561,23 @@ namespace Aether.Devices.Drivers
 
             uptime_limit = F16((VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__FIX16_MAX -
                                 VocAlgorithm_SAMPLING_INTERVAL));
-            if ((algoParams.m_Mean_Variance_Estimator___Uptime_Gamma <uptime_limit))
+            if ((algoParams.m_Mean_Variance_Estimator___Uptime_Gamma < uptime_limit))
             {
                 algoParams.m_Mean_Variance_Estimator___Uptime_Gamma =
             (algoParams.m_Mean_Variance_Estimator___Uptime_Gamma +
              F16(VocAlgorithm_SAMPLING_INTERVAL));
             }
-            if ((algoParams.m_Mean_Variance_Estimator___Uptime_Gating <uptime_limit))
+            if ((algoParams.m_Mean_Variance_Estimator___Uptime_Gating < uptime_limit))
             {
                 algoParams.m_Mean_Variance_Estimator___Uptime_Gating =
             (algoParams.m_Mean_Variance_Estimator___Uptime_Gating +
              F16(VocAlgorithm_SAMPLING_INTERVAL));
             }
-            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters (
+            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters(
                 algoParams, F16(1), F16(VocAlgorithm_INIT_DURATION_MEAN),
         F16(VocAlgorithm_INIT_TRANSITION_MEAN));
             sigmoid_gamma_mean =
-                VocAlgorithm__mean_variance_estimator___sigmoid__process (
+                VocAlgorithm__mean_variance_estimator___sigmoid__process(
                    algoParams, algoParams.m_Mean_Variance_Estimator___Uptime_Gamma);
             gamma_mean =
                 (algoParams.m_Mean_Variance_Estimator___Gamma +
@@ -595,21 +589,21 @@ namespace Aether.Devices.Drivers
                  (fix16_mul(
                      F16((VocAlgorithm_GATING_THRESHOLD_INITIAL -
                           VocAlgorithm_GATING_THRESHOLD)),
-                     VocAlgorithm__mean_variance_estimator___sigmoid__process (
+                     VocAlgorithm__mean_variance_estimator___sigmoid__process(
                         algoParams, algoParams.m_Mean_Variance_Estimator___Uptime_Gating))));
-            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters (
+            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters(
                algoParams, F16(1), gating_threshold_mean,
         F16(VocAlgorithm_GATING_THRESHOLD_TRANSITION));
             sigmoid_gating_mean =
-                VocAlgorithm__mean_variance_estimator___sigmoid__process (
+                VocAlgorithm__mean_variance_estimator___sigmoid__process(
                    algoParams, voc_index_from_prior);
-    algoParams.m_Mean_Variance_Estimator__Gamma_Mean =
-        (fix16_mul(sigmoid_gating_mean, gamma_mean));
-            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters (
+            algoParams.m_Mean_Variance_Estimator__Gamma_Mean =
+                (fix16_mul(sigmoid_gating_mean, gamma_mean));
+            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters(
                algoParams, F16(1), F16(VocAlgorithm_INIT_DURATION_VARIANCE),
         F16(VocAlgorithm_INIT_TRANSITION_VARIANCE));
             sigmoid_gamma_variance =
-                VocAlgorithm__mean_variance_estimator___sigmoid__process (
+                VocAlgorithm__mean_variance_estimator___sigmoid__process(
                    algoParams, algoParams.m_Mean_Variance_Estimator___Uptime_Gamma);
             gamma_variance =
                 (algoParams.m_Mean_Variance_Estimator___Gamma +
@@ -622,29 +616,31 @@ namespace Aether.Devices.Drivers
                  (fix16_mul(
                      F16((VocAlgorithm_GATING_THRESHOLD_INITIAL -
                           VocAlgorithm_GATING_THRESHOLD)),
-                     VocAlgorithm__mean_variance_estimator___sigmoid__process (
+                     VocAlgorithm__mean_variance_estimator___sigmoid__process(
                         algoParams, algoParams.m_Mean_Variance_Estimator___Uptime_Gating))));
-            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters (
+            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters(
                algoParams, F16(1), gating_threshold_variance,
         F16(VocAlgorithm_GATING_THRESHOLD_TRANSITION));
             sigmoid_gating_variance =
-                VocAlgorithm__mean_variance_estimator___sigmoid__process (
+                VocAlgorithm__mean_variance_estimator___sigmoid__process(
                    algoParams, voc_index_from_prior);
-    algoParams.m_Mean_Variance_Estimator__Gamma_Variance =
-        (fix16_mul(sigmoid_gating_variance, gamma_variance));
-    algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes =
-        (algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes +
-         (fix16_mul(F16((VocAlgorithm_SAMPLING_INTERVAL / 60)),
-                    ((fix16_mul((F16(1) - sigmoid_gating_mean),
-                                F16((1 + VocAlgorithm_GATING_MAX_RATIO)))) -
-                     F16(VocAlgorithm_GATING_MAX_RATIO)))));
-            if ((algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes<
-                 F16(0))) {
-        algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes = F16(0);
+            algoParams.m_Mean_Variance_Estimator__Gamma_Variance =
+                (fix16_mul(sigmoid_gating_variance, gamma_variance));
+            algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes =
+                (algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes +
+                 (fix16_mul(F16((VocAlgorithm_SAMPLING_INTERVAL / 60)),
+                            ((fix16_mul((F16(1) - sigmoid_gating_mean),
+                                        F16((1 + VocAlgorithm_GATING_MAX_RATIO)))) -
+                             F16(VocAlgorithm_GATING_MAX_RATIO)))));
+            if ((algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes <
+                 F16(0)))
+            {
+                algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes = F16(0);
             }
             if ((algoParams.m_Mean_Variance_Estimator___Gating_Duration_Minutes >
-                 algoParams.m_Mean_Variance_Estimator__Gating_Max_Duration_Minutes)) {
-        algoParams.m_Mean_Variance_Estimator___Uptime_Gating = F16(0);
+                 algoParams.m_Mean_Variance_Estimator__Gating_Max_Duration_Minutes))
+            {
+                algoParams.m_Mean_Variance_Estimator___Uptime_Gating = F16(0);
             }
         }
 
@@ -656,62 +652,65 @@ namespace Aether.Devices.Drivers
             fix16_t c;
             fix16_t additional_scaling;
 
-            if ((algoParams.m_Mean_Variance_Estimator___Initialized == false)) {
-        algoParams.m_Mean_Variance_Estimator___Initialized = true;
-        algoParams.m_Mean_Variance_Estimator___Sraw_Offset = sraw;
-        algoParams.m_Mean_Variance_Estimator___Mean = F16(0);
-            } else
+            if ((algoParams.m_Mean_Variance_Estimator___Initialized == false))
+            {
+                algoParams.m_Mean_Variance_Estimator___Initialized = true;
+                algoParams.m_Mean_Variance_Estimator___Sraw_Offset = sraw;
+                algoParams.m_Mean_Variance_Estimator___Mean = F16(0);
+            }
+            else
             {
                 if (((algoParams.m_Mean_Variance_Estimator___Mean >= F16(100)) ||
-                     (algoParams.m_Mean_Variance_Estimator___Mean <= F16(-100)))) {
-            algoParams.m_Mean_Variance_Estimator___Sraw_Offset =
-                (algoParams.m_Mean_Variance_Estimator___Sraw_Offset +
-                         algoParams.m_Mean_Variance_Estimator___Mean);
-            algoParams.m_Mean_Variance_Estimator___Mean = F16(0);
+                     (algoParams.m_Mean_Variance_Estimator___Mean <= F16(-100))))
+                {
+                    algoParams.m_Mean_Variance_Estimator___Sraw_Offset =
+                        (algoParams.m_Mean_Variance_Estimator___Sraw_Offset +
+                                 algoParams.m_Mean_Variance_Estimator___Mean);
+                    algoParams.m_Mean_Variance_Estimator___Mean = F16(0);
                 }
                 sraw = (sraw - algoParams.m_Mean_Variance_Estimator___Sraw_Offset);
-                VocAlgorithm__mean_variance_estimator___calculate_gamma (
+                VocAlgorithm__mean_variance_estimator___calculate_gamma(
                    algoParams, voc_index_from_prior);
                 delta_sgp = (fix16_div(
                     (sraw - algoParams.m_Mean_Variance_Estimator___Mean),
                     F16(VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING)));
                 if ((delta_sgp < F16(0)))
                 {
-                    c = (algoParams.m_Mean_Variance_Estimator___Std -delta_sgp);
+                    c = (algoParams.m_Mean_Variance_Estimator___Std - delta_sgp);
                 }
                 else
                 {
-                    c = (algoParams.m_Mean_Variance_Estimator___Std +delta_sgp);
+                    c = (algoParams.m_Mean_Variance_Estimator___Std + delta_sgp);
                 }
                 additional_scaling = F16(1);
                 if ((c > F16(1440)))
                 {
                     additional_scaling = F16(4);
                 }
-        algoParams.m_Mean_Variance_Estimator___Std = (fix16_mul(
-            fix16_sqrt((fix16_mul(
-                additional_scaling,
-                (F16(VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING) -
-                 algoParams.m_Mean_Variance_Estimator__Gamma_Variance)))),
-            fix16_sqrt((
-                (fix16_mul (
-                    algoParams.m_Mean_Variance_Estimator___Std,
-                    (fix16_div(
-                        algoParams.m_Mean_Variance_Estimator___Std,
+                algoParams.m_Mean_Variance_Estimator___Std = (fix16_mul(
+                    fix16_sqrt((fix16_mul(
+                        additional_scaling,
+                        (F16(VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING) -
+                         algoParams.m_Mean_Variance_Estimator__Gamma_Variance)))),
+                    fix16_sqrt((
                         (fix16_mul(
-                            F16(VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING),
-                            additional_scaling)))))) +
-                (fix16_mul(
-                    (fix16_div(
-                        (fix16_mul (
-                            algoParams.m_Mean_Variance_Estimator__Gamma_Variance,
-                            delta_sgp)),
-                        additional_scaling)),
-                    delta_sgp))))));
-        algoParams.m_Mean_Variance_Estimator___Mean =
-            (algoParams.m_Mean_Variance_Estimator___Mean +
-             (fix16_mul (algoParams.m_Mean_Variance_Estimator__Gamma_Mean,
-                        delta_sgp)));
+                            algoParams.m_Mean_Variance_Estimator___Std,
+                            (fix16_div(
+                                algoParams.m_Mean_Variance_Estimator___Std,
+                                (fix16_mul(
+                                    F16(VocAlgorithm_MEAN_VARIANCE_ESTIMATOR__GAMMA_SCALING),
+                                    additional_scaling)))))) +
+                        (fix16_mul(
+                            (fix16_div(
+                                (fix16_mul(
+                                    algoParams.m_Mean_Variance_Estimator__Gamma_Variance,
+                                    delta_sgp)),
+                                additional_scaling)),
+                            delta_sgp))))));
+                algoParams.m_Mean_Variance_Estimator___Mean =
+                    (algoParams.m_Mean_Variance_Estimator___Mean +
+                     (fix16_mul(algoParams.m_Mean_Variance_Estimator__Gamma_Mean,
+                                delta_sgp)));
             }
         }
 
@@ -719,7 +718,7 @@ namespace Aether.Devices.Drivers
             VocAlgorithmParams algoParams)
         {
 
-            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters (
+            VocAlgorithm__mean_variance_estimator___sigmoid__set_parameters(
                algoParams, F16(0), F16(0), F16(0));
         }
 
@@ -727,9 +726,9 @@ namespace Aether.Devices.Drivers
             VocAlgorithmParams algoParams, fix16_t L, fix16_t X0, fix16_t K)
         {
 
-    algoParams.m_Mean_Variance_Estimator___Sigmoid__L = L;
-    algoParams.m_Mean_Variance_Estimator___Sigmoid__K = K;
-    algoParams.m_Mean_Variance_Estimator___Sigmoid__X0 = X0;
+            algoParams.m_Mean_Variance_Estimator___Sigmoid__L = L;
+            algoParams.m_Mean_Variance_Estimator___Sigmoid__K = K;
+            algoParams.m_Mean_Variance_Estimator___Sigmoid__X0 = X0;
         }
 
         static fix16_t VocAlgorithm__mean_variance_estimator___sigmoid__process(
@@ -738,7 +737,7 @@ namespace Aether.Devices.Drivers
 
             fix16_t x;
 
-            x = (fix16_mul (algoParams.m_Mean_Variance_Estimator___Sigmoid__K,
+            x = (fix16_mul(algoParams.m_Mean_Variance_Estimator___Sigmoid__K,
                            (sample - algoParams.m_Mean_Variance_Estimator___Sigmoid__X0)));
             if ((x < F16(-50)))
             {
@@ -750,7 +749,7 @@ namespace Aether.Devices.Drivers
             }
             else
             {
-                return (fix16_div (algoParams.m_Mean_Variance_Estimator___Sigmoid__L,
+                return (fix16_div(algoParams.m_Mean_Variance_Estimator___Sigmoid__L,
                                   (F16(1) + fix16_exp(x))));
             }
         }
@@ -758,7 +757,7 @@ namespace Aether.Devices.Drivers
         static void VocAlgorithm__mox_model__init(VocAlgorithmParams algoParams)
         {
 
-            VocAlgorithm__mox_model__set_parameters (algoParams, F16(1), F16(0));
+            VocAlgorithm__mox_model__set_parameters(algoParams, F16(1), F16(0));
         }
 
         static void VocAlgorithm__mox_model__set_parameters(VocAlgorithmParams algoParams,
@@ -766,8 +765,8 @@ namespace Aether.Devices.Drivers
                                                             fix16_t SRAW_MEAN)
         {
 
-    algoParams.m_Mox_Model__Sraw_Std = SRAW_STD;
-    algoParams.m_Mox_Model__Sraw_Mean = SRAW_MEAN;
+            algoParams.m_Mox_Model__Sraw_Std = SRAW_STD;
+            algoParams.m_Mox_Model__Sraw_Mean = SRAW_MEAN;
         }
 
         static fix16_t VocAlgorithm__mox_model__process(VocAlgorithmParams algoParams,
@@ -783,7 +782,7 @@ namespace Aether.Devices.Drivers
         static void VocAlgorithm__sigmoid_scaled__init(VocAlgorithmParams algoParams)
         {
 
-            VocAlgorithm__sigmoid_scaled__set_parameters (algoParams, F16(0));
+            VocAlgorithm__sigmoid_scaled__set_parameters(algoParams, F16(0));
         }
 
         static void
@@ -791,7 +790,7 @@ namespace Aether.Devices.Drivers
                                                      fix16_t offset)
         {
 
-    algoParams.m_Sigmoid_Scaled__Offset = offset;
+            algoParams.m_Sigmoid_Scaled__Offset = offset;
         }
 
         static fix16_t VocAlgorithm__sigmoid_scaled__process(VocAlgorithmParams algoParams,
@@ -826,7 +825,7 @@ namespace Aether.Devices.Drivers
                 else
                 {
                     return (fix16_mul(
-                        (fix16_div (algoParams.m_Sigmoid_Scaled__Offset,
+                        (fix16_div(algoParams.m_Sigmoid_Scaled__Offset,
                                    F16(VocAlgorithm_VOC_INDEX_OFFSET_DEFAULT))),
                         (fix16_div(F16(VocAlgorithm_SIGMOID_L),
                                    (F16(1) + fix16_exp(x))))));
@@ -837,20 +836,20 @@ namespace Aether.Devices.Drivers
         static void VocAlgorithm__adaptive_lowpass__init(VocAlgorithmParams algoParams)
         {
 
-            VocAlgorithm__adaptive_lowpass__set_parameters (algoParams);
+            VocAlgorithm__adaptive_lowpass__set_parameters(algoParams);
         }
 
         static void
         VocAlgorithm__adaptive_lowpass__set_parameters(VocAlgorithmParams algoParams)
         {
 
-    algoParams.m_Adaptive_Lowpass__A1 =
-        F16((VocAlgorithm_SAMPLING_INTERVAL /
-             (VocAlgorithm_LP_TAU_FAST + VocAlgorithm_SAMPLING_INTERVAL)));
-    algoParams.m_Adaptive_Lowpass__A2 =
-        F16((VocAlgorithm_SAMPLING_INTERVAL /
-             (VocAlgorithm_LP_TAU_SLOW + VocAlgorithm_SAMPLING_INTERVAL)));
-    algoParams.m_Adaptive_Lowpass___Initialized = false;
+            algoParams.m_Adaptive_Lowpass__A1 =
+                F16((VocAlgorithm_SAMPLING_INTERVAL /
+                     (VocAlgorithm_LP_TAU_FAST + VocAlgorithm_SAMPLING_INTERVAL)));
+            algoParams.m_Adaptive_Lowpass__A2 =
+                F16((VocAlgorithm_SAMPLING_INTERVAL /
+                     (VocAlgorithm_LP_TAU_SLOW + VocAlgorithm_SAMPLING_INTERVAL)));
+            algoParams.m_Adaptive_Lowpass___Initialized = false;
         }
 
         static fix16_t
@@ -863,20 +862,21 @@ namespace Aether.Devices.Drivers
             fix16_t tau_a;
             fix16_t a3;
 
-            if ((algoParams.m_Adaptive_Lowpass___Initialized == false)) {
-        algoParams.m_Adaptive_Lowpass___X1 = sample;
-        algoParams.m_Adaptive_Lowpass___X2 = sample;
-        algoParams.m_Adaptive_Lowpass___X3 = sample;
-        algoParams.m_Adaptive_Lowpass___Initialized = true;
+            if ((algoParams.m_Adaptive_Lowpass___Initialized == false))
+            {
+                algoParams.m_Adaptive_Lowpass___X1 = sample;
+                algoParams.m_Adaptive_Lowpass___X2 = sample;
+                algoParams.m_Adaptive_Lowpass___X3 = sample;
+                algoParams.m_Adaptive_Lowpass___Initialized = true;
             }
-    algoParams.m_Adaptive_Lowpass___X1 =
-        ((fix16_mul((F16(1) - algoParams.m_Adaptive_Lowpass__A1),
-                            algoParams.m_Adaptive_Lowpass___X1)) +
-                 (fix16_mul (algoParams.m_Adaptive_Lowpass__A1, sample)));
-    algoParams.m_Adaptive_Lowpass___X2 =
-        ((fix16_mul((F16(1) - algoParams.m_Adaptive_Lowpass__A2),
-                            algoParams.m_Adaptive_Lowpass___X2)) +
-                 (fix16_mul (algoParams.m_Adaptive_Lowpass__A2, sample)));
+            algoParams.m_Adaptive_Lowpass___X1 =
+                ((fix16_mul((F16(1) - algoParams.m_Adaptive_Lowpass__A1),
+                                    algoParams.m_Adaptive_Lowpass___X1)) +
+                         (fix16_mul(algoParams.m_Adaptive_Lowpass__A1, sample)));
+            algoParams.m_Adaptive_Lowpass___X2 =
+                ((fix16_mul((F16(1) - algoParams.m_Adaptive_Lowpass__A2),
+                                    algoParams.m_Adaptive_Lowpass___X2)) +
+                         (fix16_mul(algoParams.m_Adaptive_Lowpass__A2, sample)));
             abs_delta =
                 (algoParams.m_Adaptive_Lowpass___X1 - algoParams.m_Adaptive_Lowpass___X2);
             if ((abs_delta < F16(0)))
@@ -890,9 +890,9 @@ namespace Aether.Devices.Drivers
                  F16(VocAlgorithm_LP_TAU_FAST));
             a3 = (fix16_div(F16(VocAlgorithm_SAMPLING_INTERVAL),
                             (F16(VocAlgorithm_SAMPLING_INTERVAL) + tau_a)));
-    algoParams.m_Adaptive_Lowpass___X3 =
-        ((fix16_mul((F16(1) - a3), algoParams.m_Adaptive_Lowpass___X3)) +
-         (fix16_mul(a3, sample)));
+            algoParams.m_Adaptive_Lowpass___X3 =
+                ((fix16_mul((F16(1) - a3), algoParams.m_Adaptive_Lowpass___X3)) +
+                 (fix16_mul(a3, sample)));
             return algoParams.m_Adaptive_Lowpass___X3;
         }
     }
