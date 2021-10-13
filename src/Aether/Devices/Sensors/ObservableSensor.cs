@@ -103,5 +103,8 @@ namespace Aether.Devices.Sensors
 
         protected void OnNextBarometricPressure(Pressure p) =>
             _measurements.OnNext(Measurement.FromPressure(p));
+
+        protected void OnNextVolitileOrganicCompound(VolumeConcentration voc) =>
+            _measurements.OnNext(Measurement.FromVoc(voc));
     }
 }

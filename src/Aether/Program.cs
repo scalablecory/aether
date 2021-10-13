@@ -73,5 +73,5 @@ static Task RunAndPrintSensorAsync(Func<ObservableSensor> sensorFunc) =>
     .TakeUntil(AetherObservable.ConsoleCancelKeyPress)
     .ForEachAsync(measurement =>
     {
-        Console.WriteLine($"[{DateTime.Now:t}] {measurement}");
+        Console.WriteLine($"[{DateTime.Now:t}] {measurement.Voc.Value}");
     });

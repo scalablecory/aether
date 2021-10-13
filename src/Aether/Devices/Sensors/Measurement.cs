@@ -25,6 +25,9 @@ namespace Aether.Devices.Sensors
         public Pressure BarometricPressure =>
             new Pressure(_value, (PressureUnit)_unit);
 
+        public VolumeConcentration Voc =>
+            new VolumeConcentration(_value, (VolumeConcentrationUnit)_unit);
+
         private Measurement(double value, int unit, Measure measure)
         {
             _value = value;
@@ -44,12 +47,16 @@ namespace Aether.Devices.Sensors
         public static Measurement FromPressure(Pressure p) =>
             new Measurement(p.Value, (int)p.Unit, Measure.Humidity);
 
+        public static Measurement FromVoc(VolumeConcentration voc) =>
+            new Measurement(voc.Value, (int)voc.Unit, Measure.VOC);
+
         public override string ToString() => Measure switch
         {
             Measure.Humidity => RelativeHumidity.ToString(),
             Measure.Temperature => Temperature.ToString(),
             Measure.CO2 => Co2.ToString(),
             Measure.BarometricPressure => BarometricPressure.ToString(),
+            Measure.VOC => "VOC",
             _ => $"{{ Empty {nameof(Measurement)} }}"
         };
     }

@@ -22,6 +22,11 @@ namespace Aether.Devices.Sensors
         CO2,
 
         /// <summary>
+        /// Corresponds to a <see cref="VolumeConcentration"/>.
+        /// </summary>
+        VOC,
+
+        /// <summary>
         /// Corresponds to a <see cref="UnitsNet.Pressure"/>.
         /// </summary>
         BarometricPressure

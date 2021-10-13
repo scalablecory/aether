@@ -1,4 +1,5 @@
 ﻿using System.Device.I2c;
+using UnitsNet;
 
 namespace Aether.Devices.Drivers
 {
@@ -106,7 +107,7 @@ namespace Aether.Devices.Drivers
         /// <param name="temperatureValue">The temperature value expressed in degrees celsius.</param>
         /// <returns>The raw VOC measurement value from the sensor. If an error occurred, it will be <see langword="null"/>.</returns>
         /// <remarks>If default relative humidity and temperature values are supplied, humidity compensation will be disabled.</remarks>
-        public ushort? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25)
+        public VolumeConcentration? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25)
         {
             if (relativeHumidityValue > 100)
             {
@@ -118,7 +119,7 @@ namespace Aether.Devices.Drivers
                 throw new ArgumentOutOfRangeException(nameof(temperatureValue), temperatureValue, "A temperature value must be between -45 and 130");
             }
 
-            Span<byte> writeBuffer = stackalloc byte[10];
+            Span<byte> writeBuffer = stackalloc byte[8];
             Span<byte> readBuffer = stackalloc byte[3];
 
             // Write start measure VOC raw command
@@ -126,13 +127,11 @@ namespace Aether.Devices.Drivers
             writeBuffer[1] = 0x0F;
 
             // Write default humidity value + CRC (0x80, 0x00, [CRC], 0xA2)
-            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(2, 3), (ushort)(relativeHumidityValue * 65535 / 100));
-            writeBuffer[5] = 0xA2;
-
+            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(2, 3), (ushort)Math.Round((double)(relativeHumidityValue * 65535.00 / 100.00), MidpointRounding.AwayFromZero));
+            
             // Write default temperature value + CRC (0x66, 0x66, [CRC], 0x93)
-            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(6, 3), (ushort)((temperatureValue + 45) * 65535 / 175));
-            writeBuffer[9] = 0x93;
-
+            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(5, 3), (ushort)((temperatureValue + 45) * 65535.00 / 175.00));
+            
             // Transmit command
             _device.Write(writeBuffer);
 
@@ -141,7 +140,25 @@ namespace Aether.Devices.Drivers
             _device.Read(readBuffer);
 
             // Read the results and validate CRC
-            return Sensirion.ReadUInt16BigEndianAndCRC8(readBuffer);
+            ushort? readValue = Sensirion.ReadUInt16BigEndianAndCRC8(readBuffer);
+
+            if(readValue is null)
+            {
+                return null;
+            }
+
+            Console.WriteLine("VOC RAW: {0}", readValue.Value);
+
+            Sgp4xAlgorithm.VocAlgorithmParams algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
+
+            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
+
+            int vocValue = -1;
+            Sgp4xAlgorithm.VocAlgorithm_process(algoParams, readValue.Value, out vocValue);
+
+            Console.WriteLine("VOC INDEX: {0}", vocValue);
+
+            return new VolumeConcentration(vocValue, UnitsNet.Units.VolumeConcentrationUnit.PartPerBillion);
         }
 
         /// <summary>

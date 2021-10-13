@@ -393,10 +393,8 @@
             return res;
         }
 
-
-        void VocAlgorithm_init(VocAlgorithmParams algoParams)
+        public static void VocAlgorithm_init(VocAlgorithmParams algoParams)
         {
-
             algoParams.mVoc_Index_Offset = F16(VocAlgorithm_VOC_INDEX_OFFSET_DEFAULT);
             algoParams.mTau_Mean_Variance_Hours = F16(VocAlgorithm_TAU_MEAN_VARIANCE_HOURS);
             algoParams.mGating_Max_Duration_Minutes = F16(VocAlgorithm_GATING_MAX_DURATION_MINUTES);
@@ -407,7 +405,7 @@
             VocAlgorithm__init_instances(algoParams);
         }
 
-        static void VocAlgorithm__init_instances(VocAlgorithmParams algoParams)
+        public static void VocAlgorithm__init_instances(VocAlgorithmParams algoParams)
         {
 
             VocAlgorithm__mean_variance_estimator__init(algoParams);
@@ -425,7 +423,7 @@
             VocAlgorithm__adaptive_lowpass__set_parameters(algoParams);
         }
 
-        void VocAlgorithm_get_states(VocAlgorithmParams algoParams, out int state0,
+        public void VocAlgorithm_get_states(VocAlgorithmParams algoParams, out int state0,
                                      out int state1)
         {
 
@@ -434,7 +432,7 @@
             return;
         }
 
-        void VocAlgorithm_set_states(VocAlgorithmParams algoParams, int state0,
+        public void VocAlgorithm_set_states(VocAlgorithmParams algoParams, int state0,
                                      int state1)
         {
 
@@ -443,7 +441,7 @@
             algoParams.mSraw = state0;
         }
 
-        void VocAlgorithm_set_tuning_parameters(VocAlgorithmParams algoParams,
+        public void VocAlgorithm_set_tuning_parameters(VocAlgorithmParams algoParams,
                                                 int voc_index_offset,
                                                 int learning_time_hours,
                                                 int gating_max_duration_minutes,
@@ -457,10 +455,10 @@
             VocAlgorithm__init_instances(algoParams);
         }
 
-        void VocAlgorithm_process(VocAlgorithmParams algoParams, int sraw, out int voc_index)
+        public static void VocAlgorithm_process(VocAlgorithmParams algoParams, int sraw, out int voc_index)
         {
 
-            if ((algoParams.mUptime <= F16(VocAlgorithm_INITIAL_BLACKOUT)))
+            if (false)//(algoParams.mUptime <= F16(VocAlgorithm_INITIAL_BLACKOUT)))
             {
                 algoParams.mUptime = (algoParams.mUptime + F16(VocAlgorithm_SAMPLING_INTERVAL));
             }
@@ -477,10 +475,15 @@
                         sraw = 52767;
                     }
                     algoParams.mSraw = fix16_from_int(sraw - 20000);
+                    Console.WriteLine("UPDATED SRAW: {0}", algoParams.mSraw);
                 }
+                
                 algoParams.mVoc_Index = VocAlgorithm__mox_model__process(algoParams, algoParams.mSraw);
+                Console.WriteLine("VOC POST MOX: {0}", algoParams.mVoc_Index);
                 algoParams.mVoc_Index = VocAlgorithm__sigmoid_scaled__process(algoParams, algoParams.mVoc_Index);
+                Console.WriteLine("VOC POST SCALED: {0}", algoParams.mVoc_Index);
                 algoParams.mVoc_Index = VocAlgorithm__adaptive_lowpass__process(algoParams, algoParams.mVoc_Index);
+                Console.WriteLine("VOC POST ALP: {0}", algoParams.mVoc_Index);
                 if (algoParams.mVoc_Index < F16(0.5))
                 {
                     algoParams.mVoc_Index = F16(0.5);
@@ -496,8 +499,7 @@
             return;
         }
 
-        static void
-        VocAlgorithm__mean_variance_estimator__init(VocAlgorithmParams algoParams)
+        public static void VocAlgorithm__mean_variance_estimator__init(VocAlgorithmParams algoParams)
         {
             VocAlgorithm__mean_variance_estimator__set_parameters(algoParams, F16(0), F16(0), F16(0));
             VocAlgorithm__mean_variance_estimator___init_instances(algoParams);
@@ -852,8 +854,7 @@
             algoParams.m_Adaptive_Lowpass___Initialized = false;
         }
 
-        static fix16_t
-        VocAlgorithm__adaptive_lowpass__process(VocAlgorithmParams algoParams,
+        static fix16_t VocAlgorithm__adaptive_lowpass__process(VocAlgorithmParams algoParams,
                                                 fix16_t sample)
         {
 
