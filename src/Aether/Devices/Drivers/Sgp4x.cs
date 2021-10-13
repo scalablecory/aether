@@ -57,10 +57,10 @@ namespace Aether.Devices.Drivers
             Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(0, 3));
             
             // Read second two bytes of serial number (+ CRC)
-            Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(4, 3));
+            Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(3, 3));
             
             // Read third two bytes of serial number (+ CRC)
-            Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(7, 3));
+            Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(6, 3));
 
             // Read serial number into array excluding CRC bytes
             byte[] serialNumber = new byte[6];
