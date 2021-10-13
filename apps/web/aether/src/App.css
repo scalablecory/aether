@@ -1,10 +1,8 @@
-body,
-html,
-#root {
-  height: 100%;
+.container {
+  margin-top: 16px;
 }
 
-.app {
+.chart-container {
   background-image: url("./assets/sky.jpg");
   /* Full height */
   height: 100%;
@@ -13,13 +11,6 @@ html,
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-}
-
-.app h1 {
-  color: white;
-  text-align: center;
-  padding: 16px;
-  margin: 0;
 }
 
 .air-quality-container {
@@ -75,4 +66,38 @@ html,
 .maroon td {
   background-color: maroon;
   color: white;
+}
+
+#headingGreen .accordion-button {
+  background-color: green;
+  color: white;
+}
+
+#headingYellow .accordion-button {
+  background-color: yellow;
+  color: black;
+}
+
+#headingOrange .accordion-button {
+  background-color: orange;
+  color: white;
+}
+
+#headingPurple .accordion-button {
+  background-color: purple;
+  color: white;
+}
+
+#headingRed .accordion-button {
+  background-color: red;
+  color: white;
+}
+
+#headingMaroon .accordion-button {
+  background-color: maroon;
+  color: white;
+}
+
+.connectBtn {
+  margin-right: 16px;
 }
