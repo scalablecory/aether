@@ -1,4 +1,5 @@
-﻿using Aether.Devices.Sensors.Metadata;
+﻿using Aether.CustomUnits;
+using Aether.Devices.Sensors.Metadata;
 using System.Diagnostics.CodeAnalysis;
 using System.Reactive.Subjects;
 using System.Runtime.CompilerServices;
@@ -104,7 +105,7 @@ namespace Aether.Devices.Sensors
         protected void OnNextBarometricPressure(Pressure p) =>
             _measurements.OnNext(Measurement.FromPressure(p));
 
-        protected void OnNextVolitileOrganicCompound(VolumeConcentration voc) =>
-            _measurements.OnNext(Measurement.FromVoc(voc));
+        protected void OnNextVolitileOrganicCompound(VolatileOrganicCompoundIndex vocIndex) =>
+            _measurements.OnNext(Measurement.FromVoc(vocIndex));
     }
 }

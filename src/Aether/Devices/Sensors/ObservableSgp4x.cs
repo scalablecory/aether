@@ -1,4 +1,5 @@
-﻿using Aether.Devices.Sensors.Metadata;
+﻿using Aether.CustomUnits;
+using Aether.Devices.Sensors.Metadata;
 using System;
 using System.Collections.Generic;
 using System.Device.I2c;
@@ -47,9 +48,9 @@ namespace Aether.Devices.Sensors
 
             while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                VolumeConcentration? measure = _sensor.GetVOCRawMeasure();
+                VolatileOrganicCompoundIndex? vocIndex = _sensor.GetVOCRawMeasure();
 
-                if (measure is not null) OnNextVolitileOrganicCompound(measure.Value);
+                if (vocIndex is not null) OnNextVolitileOrganicCompound(vocIndex.Value);
             }
         }
     }

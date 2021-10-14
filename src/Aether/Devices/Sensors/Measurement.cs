@@ -1,4 +1,5 @@
-﻿using System.Runtime.InteropServices;
+﻿using Aether.CustomUnits;
+using System.Runtime.InteropServices;
 using UnitsNet;
 using UnitsNet.Units;
 
@@ -25,8 +26,8 @@ namespace Aether.Devices.Sensors
         public Pressure BarometricPressure =>
             new Pressure(_value, (PressureUnit)_unit);
 
-        public VolumeConcentration Voc =>
-            new VolumeConcentration(_value, (VolumeConcentrationUnit)_unit);
+        public  VolatileOrganicCompoundIndex Voc =>
+            new VolatileOrganicCompoundIndex(_value, (VolatileOrganicCompoundIndexUnit)_unit);
 
         private Measurement(double value, int unit, Measure measure)
         {
@@ -47,8 +48,8 @@ namespace Aether.Devices.Sensors
         public static Measurement FromPressure(Pressure p) =>
             new Measurement(p.Value, (int)p.Unit, Measure.Humidity);
 
-        public static Measurement FromVoc(VolumeConcentration voc) =>
-            new Measurement(voc.Value, (int)voc.Unit, Measure.VOC);
+        public static Measurement FromVoc(VolatileOrganicCompoundIndex vocIndex) =>
+            new Measurement(vocIndex.Value, 0, Measure.VOC);
 
         public override string ToString() => Measure switch
         {

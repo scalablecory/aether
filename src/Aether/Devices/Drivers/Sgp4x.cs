@@ -1,4 +1,5 @@
-﻿using System.Device.I2c;
+﻿using Aether.CustomUnits;
+using System.Device.I2c;
 using UnitsNet;
 
 namespace Aether.Devices.Drivers
@@ -15,6 +16,8 @@ namespace Aether.Devices.Drivers
 
         private readonly I2cDevice _device;
 
+        Sgp4xAlgorithm.VocAlgorithmParams algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
+
         /// <summary>
         /// Instantiates a new <see cref="Sgp4x"/>.
         /// </summary>
@@ -23,6 +26,8 @@ namespace Aether.Devices.Drivers
         {
             _device = device;
             Reset();
+
+            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
         }
 
         /// <inheritdoc/>
@@ -34,6 +39,8 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void Reset()
         {
+            algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
+            Span<byte> resetCommand = stackalloc byte[2] { 0x00, 0x06 };
             _device.WriteByte(0x00);
             _device.WriteByte(0x06);
             Thread.Sleep(1);
@@ -107,7 +114,7 @@ namespace Aether.Devices.Drivers
         /// <param name="temperatureValue">The temperature value expressed in degrees celsius.</param>
         /// <returns>The raw VOC measurement value from the sensor. If an error occurred, it will be <see langword="null"/>.</returns>
         /// <remarks>If default relative humidity and temperature values are supplied, humidity compensation will be disabled.</remarks>
-        public VolumeConcentration? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25)
+        public VolatileOrganicCompoundIndex? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25)
         {
             if (relativeHumidityValue > 100)
             {
@@ -147,18 +154,10 @@ namespace Aether.Devices.Drivers
                 return null;
             }
 
-            Console.WriteLine("VOC RAW: {0}", readValue.Value);
-
-            Sgp4xAlgorithm.VocAlgorithmParams algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
-
-            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
-
             int vocValue = -1;
             Sgp4xAlgorithm.VocAlgorithm_process(algoParams, readValue.Value, out vocValue);
 
-            Console.WriteLine("VOC INDEX: {0}", vocValue);
-
-            return new VolumeConcentration(vocValue, UnitsNet.Units.VolumeConcentrationUnit.PartPerBillion);
+            return new VolatileOrganicCompoundIndex(vocValue);
         }
 
         /// <summary>
@@ -166,6 +165,7 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void DisableHotPlate()
         {
+            algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
             Span<byte> disableHotPlateCommand = stackalloc byte[2] { 0x36, 0x15 };
             _device.Write(disableHotPlateCommand);
             Thread.Sleep(1);
