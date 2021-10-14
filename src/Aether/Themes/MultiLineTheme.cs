@@ -5,7 +5,7 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Processing;
 
-namespace Aether.Devices.Displays.Themes
+namespace Aether.Themes
 {
     internal sealed class MultiLineTheme
     {
@@ -13,7 +13,7 @@ namespace Aether.Devices.Displays.Themes
 
         public static IDisposable CreateTheme(DisplayDriver driver, IEnumerable<Measure> lines, IObservable<Measurement> source)
         {
-            Image image = driver.CreateImage(DrawOrientation.Rotate90);
+            Image image = driver.CreateImage();
 
             var fontCollection = new FontCollection();
             fontCollection.Install("fonts/Manrope-Regular.ttf");
