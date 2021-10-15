@@ -153,7 +153,7 @@ namespace Aether.Devices.Drivers
             
             if (temperatureValue is not null)
             {
-                tempValue = temperatureValue.Value.Value;
+                tempValue = temperatureValue.Value.DegreesFahrenheit;
 
                 if (tempValue < -45 || tempValue > 130)
                 {
