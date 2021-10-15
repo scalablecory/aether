@@ -13,8 +13,8 @@ namespace Aether.Devices.Sensors
     internal class ObservableSgp4x : ObservableSensor, IObservableI2cSensorFactory
     {
         private readonly Drivers.Sgp4x _sensor;
-        private static readonly SensorDependency TemperatureDependency = new SensorDependency(Measure.Temperature, true);
-        private static readonly SensorDependency HumidityDependency = new SensorDependency(Measure.Humidity, true);
+        private static readonly SensorDependency TemperatureDependency = new SensorDependency(Measure.Temperature, required: false);
+        private static readonly SensorDependency HumidityDependency = new SensorDependency(Measure.Humidity, required: false);
         private ObservableSgp4x(I2cDevice device)
         {
             _sensor = new Drivers.Sgp4x(device);
