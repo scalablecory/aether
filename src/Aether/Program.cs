@@ -111,7 +111,7 @@ themeTestCommand.Handler = CommandHandler.Create(() =>
 {
     var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature };
 
-    using var driver = new SimulatedDisplayDriver("out", 296, 128, 112.399461802960f, 111.917383820998f);
+    using var driver = new SimulatedDisplayDriver("out", 128, 296, 111.917383820998f, 112.399461802960f);
     using var sub = new Subject<Measurement>();
     using IDisposable theme = MultiLineTheme.CreateTheme(driver, lines, sub);
 
