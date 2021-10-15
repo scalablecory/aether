@@ -25,6 +25,10 @@ namespace Aether.Themes
 
             DrawingOptions bottomRightAlignDrawingOptions = new DrawingOptions
             {
+                GraphicsOptions =
+                {
+                    Antialias = false
+                },
                 TextOptions =
                 {
                     DpiX = driver.DpiX,
@@ -71,17 +75,18 @@ namespace Aether.Themes
                 offsets[measure] = ++i;
             }
 
-            float labelOffsetX = image.Width - (marginInPixelsX + maxLabelWidth);
+            int labelOffsetX = image.Width - (int)MathF.Ceiling(marginInPixelsX + maxLabelWidth);
 
             // these two will be used to know our draw areas.
 
-            float measureOffsetX = labelOffsetX - marginInPixelsX;
-            float measureHeight = maxLineHeight + marginInPixelsY;
+            float measureOffsetX = MathF.Floor(labelOffsetX - marginInPixelsX);
+            int measureHeight = (int)Math.Ceiling(maxLineHeight + marginInPixelsY);
 
             // draw static labels.
 
             var bottomLeftAlignDrawingOptions = new DrawingOptions
             {
+                GraphicsOptions = { Antialias = false },
                 TextOptions = { DpiX = dpiX, DpiY = dpiY, VerticalAlignment = VerticalAlignment.Bottom }
             };
 
@@ -93,10 +98,10 @@ namespace Aether.Themes
                 {
                     // This is how much to move the label up to match the baseline of measures.
                     // When ImageSharp supports getting the various measurements of strings, use that instead.
-                    const float baselineOffsetY = 7.0f;
+                    const int baselineOffsetY = 7;
 
                     string text = GetMeasureLabel(measure);
-                    float labelOffsetY = offset * measureHeight - baselineOffsetY;
+                    int labelOffsetY = offset * measureHeight - baselineOffsetY;
                     var location = new PointF(labelOffsetX, labelOffsetY);
 
                     ctx.DrawText(bottomLeftAlignDrawingOptions, text, labelFont, Color.Black, location);
@@ -135,7 +140,7 @@ namespace Aether.Themes
                         _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")
                     };
 
-                    float measureOffsetY = measureOffset * measureHeight;
+                    int measureOffsetY = measureOffset * measureHeight;
                     var location = new PointF(measureOffsetX, measureOffsetY);
 
                     image.Mutate(ctx =>
