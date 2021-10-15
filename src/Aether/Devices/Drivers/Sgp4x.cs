@@ -50,7 +50,7 @@ namespace Aether.Devices.Drivers
         /// Gets the serial number of the device.
         /// </summary>
         /// <returns>The serial number of the device.</returns>
-        public ReadOnlySpan<byte> GetSerialNumber()
+        public byte[] GetSerialNumber()
         {
             Span<byte> getSerialNumberCommand = stackalloc byte[2] { 0x36, 0x82 };
             Span<byte> serialNumberWithCRC = stackalloc byte[9];
@@ -60,14 +60,30 @@ namespace Aether.Devices.Drivers
 
             Thread.Sleep(1);
 
+            ushort? readValue;
             // Read first two bytes of serial number (+ CRC)
-            Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(0, 3));
-            
+            readValue = Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(0, 3));
+
+            if (readValue is null)
+            {
+                throw new IOException("CRC for receved data is invalid");
+            }
+
             // Read second two bytes of serial number (+ CRC)
-            Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(3, 3));
-            
+            readValue = Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(3, 3));
+
+            if (readValue is null)
+            {
+                throw new IOException("CRC for receved data is invalid");
+            }
+
             // Read third two bytes of serial number (+ CRC)
-            Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(6, 3));
+            readValue = Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(6, 3));
+
+            if (readValue is null)
+            {
+                throw new IOException("CRC for receved data is invalid");
+            }
 
             // Read serial number into array excluding CRC bytes
             byte[] serialNumber = new byte[6];
@@ -79,7 +95,7 @@ namespace Aether.Devices.Drivers
             serialNumber[4] = serialNumberWithCRC[6];
             serialNumber[5] = serialNumberWithCRC[7];
 
-            return new ReadOnlySpan<byte>(serialNumber);
+            return serialNumber;
         }
 
         /// <summary>
@@ -99,8 +115,13 @@ namespace Aether.Devices.Drivers
             // Read test result data
             _device.Read(testResultWithCRC);
 
-            Sensirion.ReadUInt16BigEndianAndCRC8(testResultWithCRC);
+            ushort? readValue;
+            readValue = Sensirion.ReadUInt16BigEndianAndCRC8(testResultWithCRC);
 
+            if (readValue is null)
+            {
+                throw new IOException("CRC for receved data is invalid");
+            }
             // Check result status (Most significant byte, ignore least significant non-crc byte)
             // 0xD4 = All tests passed
             // 0x4B = One or more test failed
@@ -114,17 +135,31 @@ namespace Aether.Devices.Drivers
         /// <param name="temperatureValue">The temperature value expressed in degrees celsius.</param>
         /// <returns>The raw VOC measurement value from the sensor. If an error occurred, it will be <see langword="null"/>.</returns>
         /// <remarks>If default relative humidity and temperature values are supplied, humidity compensation will be disabled.</remarks>
-        public VolatileOrganicCompoundIndex? GetVOCRawMeasure(ushort relativeHumidityValue = 50, short temperatureValue = 25)
+        public VolatileOrganicCompoundIndex? GetVOCRawMeasure(RelativeHumidity? relativeHumidityValue = null, Temperature? temperatureValue = null)
         {
-            if (relativeHumidityValue > 100)
-            {
-                throw new ArgumentOutOfRangeException(nameof(relativeHumidityValue), relativeHumidityValue, "A relative humidity percentage value must be between 0 and 100");
-            }
+            double rhValue = 50;
+            double tempValue = 25;
 
-            if (temperatureValue < -45 || temperatureValue > 130)
+            if(relativeHumidityValue is not null)
             {
-                throw new ArgumentOutOfRangeException(nameof(temperatureValue), temperatureValue, "A temperature value must be between -45 and 130");
+                rhValue = relativeHumidityValue.Value.Value;
+
+                if (rhValue < 0 || rhValue > 100)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(relativeHumidityValue), relativeHumidityValue, "A relative humidity percentage value must be between 0 and 100");
+                }
             }
+            
+            if (temperatureValue is not null)
+            {
+                tempValue = temperatureValue.Value.Value;
+
+                if (tempValue < -45 || tempValue > 130)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(temperatureValue), temperatureValue, "A temperature value must be between -45 and 130");
+                }
+            }
+            
 
             Span<byte> writeBuffer = stackalloc byte[8];
             Span<byte> readBuffer = stackalloc byte[3];
@@ -133,12 +168,12 @@ namespace Aether.Devices.Drivers
             writeBuffer[0] = 0x26;
             writeBuffer[1] = 0x0F;
 
-            // Write default humidity value + CRC (0x80, 0x00, [CRC], 0xA2)
-            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(2, 3), (ushort)Math.Round((double)(relativeHumidityValue * 65535.00 / 100.00), MidpointRounding.AwayFromZero));
-            
-            // Write default temperature value + CRC (0x66, 0x66, [CRC], 0x93)
-            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(5, 3), (ushort)((temperatureValue + 45) * 65535.00 / 175.00));
-            
+            // Write default humidity value + CRC (0x80, 0x00, [CRC])
+            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(2, 3), (ushort)Math.Round(rhValue * 65535.00 / 100.00, MidpointRounding.AwayFromZero));
+
+            // Write default temperature value + CRC (0x66, 0x66, [CRC])
+            Sensirion.WriteUInt16BigEndianAndCRC8(writeBuffer.Slice(5, 3), (ushort)((tempValue + 45) * 65535.00 / 175.00));
+
             // Transmit command
             _device.Write(writeBuffer);
 
@@ -147,11 +182,12 @@ namespace Aether.Devices.Drivers
             _device.Read(readBuffer);
 
             // Read the results and validate CRC
-            ushort? readValue = Sensirion.ReadUInt16BigEndianAndCRC8(readBuffer);
+            ushort? readValue;
+            readValue = Sensirion.ReadUInt16BigEndianAndCRC8(readBuffer);
 
-            if(readValue is null)
+            if (readValue is null)
             {
-                return null;
+                throw new IOException("CRC for receved data is invalid");
             }
 
             int vocValue = -1;

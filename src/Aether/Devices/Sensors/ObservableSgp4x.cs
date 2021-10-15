@@ -13,7 +13,8 @@ namespace Aether.Devices.Sensors
     internal class ObservableSgp4x : ObservableSensor, IObservableI2cSensorFactory
     {
         private readonly Drivers.Sgp4x _sensor;
-
+        private static readonly SensorDependency TemperatureDependency = new SensorDependency(Measure.Temperature, true);
+        private static readonly SensorDependency HumidityDependency = new SensorDependency(Measure.Humidity, true);
         private ObservableSgp4x(I2cDevice device)
         {
             _sensor = new Drivers.Sgp4x(device);
@@ -33,7 +34,7 @@ namespace Aether.Devices.Sensors
             new MeasureInfo(Measure.VOC)
         };
 
-        public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
+        public static IEnumerable<SensorDependency> Dependencies => new[] { TemperatureDependency, HumidityDependency };
 
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
