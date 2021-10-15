@@ -143,7 +143,7 @@ namespace Aether.Devices.Drivers
 
             if(relativeHumidityValue is not null)
             {
-                rhValue = relativeHumidityValue.Value.Value;
+                rhValue = relativeHumidityValue.Value.Percent;
 
                 if (rhValue < 0 || rhValue > 100)
                 {
