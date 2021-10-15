@@ -11,6 +11,7 @@ namespace Aether.Devices.Sensors
         private ObservableMs5637(I2cDevice device)
         {
             _sensor = new Drivers.Ms5637(device);
+            Start();
         }
 
         protected override void DisposeCore() =>

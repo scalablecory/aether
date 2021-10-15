@@ -15,6 +15,7 @@ namespace Aether.Devices.Sensors
         {
             _sensor = new Drivers.Scd4x(device);
             _dependencies = dependencies;
+            Start();
         }
 
         protected override void DisposeCore() =>
@@ -77,7 +78,10 @@ namespace Aether.Devices.Sensors
             new MeasureInfo(Measure.Temperature)
         };
 
-        public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
+        public static IEnumerable<SensorDependency> Dependencies => new[]
+        {
+            new SensorDependency(Measure.BarometricPressure, required: false)
+        };
 
         // TODO: self-calibration command.
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
