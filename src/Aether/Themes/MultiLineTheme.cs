@@ -1,9 +1,11 @@
 ﻿using Aether.Devices.Drivers;
 using Aether.Devices.Sensors;
+using Aether.Reactive;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Processing;
+using System.Reactive.Linq;
 
 namespace Aether.Themes
 {
@@ -106,30 +108,44 @@ namespace Aether.Themes
             // wire up against the source.
             // TODO: abstract and localize stringy bits.
 
-            return source.Subscribe(measurement =>
+            var seen = new HashSet<Measure>();
+
+            return source.Gate().Subscribe(measurements =>
             {
-                if (!offsets.TryGetValue(measurement.Measure, out int measureOffset))
+                for (int i = measurements.Count - 1; i >= 0; --i)
                 {
-                    return;
+                    Measurement measurement = measurements[i];
+                    
+                    if (!seen.Add(measurement.Measure))
+                    {
+                        continue;
+                    }
+
+                    if (!offsets.TryGetValue(measurement.Measure, out int measureOffset))
+                    {
+                        return;
+                    }
+
+                    string text = measurement.Measure switch
+                    {
+                        Measure.Humidity => (measurement.RelativeHumidity.Value * (1.0 / 100.0)).ToString("P0"),
+                        Measure.Temperature => measurement.Temperature.DegreesFahrenheit.ToString("N1"),
+                        Measure.CO2 => measurement.Co2.PartsPerMillion.ToString("N0"),
+                        Measure.BarometricPressure => measurement.BarometricPressure.Atmospheres.ToString("N2"),
+                        _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")
+                    };
+
+                    float measureOffsetY = measureOffset * measureHeight;
+                    var location = new PointF(measureOffsetX, measureOffsetY);
+
+                    image.Mutate(ctx =>
+                    {
+                        ctx.Fill(Color.White, new RectangleF(0.0f, measureOffsetY - measureHeight, measureOffsetX, measureHeight));
+                        ctx.DrawText(bottomRightAlignDrawingOptions, text, measurementFont, Color.Black, location);
+                    });
                 }
 
-                string text = measurement.Measure switch
-                {
-                    Measure.Humidity => (measurement.RelativeHumidity.Value * (1.0 / 100.0)).ToString("P0"),
-                    Measure.Temperature => measurement.Temperature.DegreesFahrenheit.ToString("N1"),
-                    Measure.CO2 => measurement.Co2.PartsPerMillion.ToString("N0"),
-                    Measure.BarometricPressure => measurement.BarometricPressure.Atmospheres.ToString("N2"),
-                    _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")
-                };
-
-                float measureOffsetY = measureOffset * measureHeight;
-                var location = new PointF(measureOffsetX, measureOffsetY);
-
-                image.Mutate(ctx =>
-                {
-                    ctx.DrawText(bottomRightAlignDrawingOptions, text, measurementFont, Color.Black, location);
-                });
-
+                seen.Clear();
                 driver.DisplayImage(image);
             });
         }

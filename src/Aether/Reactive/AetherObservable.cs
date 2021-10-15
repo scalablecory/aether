@@ -1,5 +1,6 @@
 ﻿using System.Reactive;
 using System.Reactive.Linq;
+using System.Threading.Channels;
 
 namespace Aether.Reactive
 {
@@ -52,6 +53,58 @@ namespace Aether.Reactive
             observable
                 .Catch<T, Exception>(exception => Observable.Concat(finallySequence, Observable.Throw<T>(exception)))
                 .Concat(finallySequence);
+
+        /// <summary>
+        /// Buffers observed items until the observer is ready to be called.
+        /// </summary>
+        /// <param name="observable">An observable sequence.</param>
+        /// <remarks>
+        /// This is useful when an observer takes a long time to process, but can process any number of items in that time.
+        /// </remarks>
+        public static IObservable<IList<T>> Gate<T>(this IObservable<T> observable) =>
+            Observable.Create(async (IObserver<IList<T>> observer, CancellationToken cancellationToken) =>
+            {
+                Channel<T> channel = Channel.CreateUnbounded<T>();
+
+                using CancellationTokenRegistration reg = cancellationToken.UnsafeRegister(static obj => ((ChannelWriter<T>)obj!).TryComplete(), channel.Writer);
+
+                using IDisposable sub = observable.Subscribe(next =>
+                {
+                    try
+                    {
+                        channel.Writer.TryWrite(next);
+                    }
+                    catch (ChannelClosedException)
+                    {
+                        // ignore.
+                    }
+                },
+                err =>
+                {
+                    channel.Writer.TryComplete(err);
+                },
+                () =>
+                {
+                    channel.Writer.TryComplete();
+                });
+
+                var list = new List<T>();
+
+                do
+                {
+                    while (channel.Reader.TryRead(out T? value))
+                    {
+                        list.Add(value);
+                    }
+
+                    if (list.Count != 0)
+                    {
+                        observer.OnNext(list);
+                        list = new List<T>();
+                    }
+                }
+                while (await channel.Reader.WaitToReadAsync().ConfigureAwait(false));
+            });
 
         /// <summary>
         /// Gets an event that triggers when the console's cancel key (CTRL+C) is pressed is pressed.

@@ -15,6 +15,7 @@ namespace Aether.Devices.Sensors
         {
             _sensor = new Drivers.Scd4x(device);
             _dependencies = dependencies;
+            Start();
         }
 
         protected override void DisposeCore() =>
