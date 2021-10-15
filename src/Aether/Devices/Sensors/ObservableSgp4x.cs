@@ -1,11 +1,8 @@
 ﻿using Aether.CustomUnits;
 using Aether.Devices.Sensors.Metadata;
-using System;
-using System.Collections.Generic;
+using Aether.Reactive;
 using System.Device.I2c;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Reactive.Linq;
 using UnitsNet;
 
 namespace Aether.Devices.Sensors
@@ -13,11 +10,12 @@ namespace Aether.Devices.Sensors
     internal class ObservableSgp4x : ObservableSensor, IObservableI2cSensorFactory
     {
         private readonly Drivers.Sgp4x _sensor;
-        private static readonly SensorDependency TemperatureDependency = new SensorDependency(Measure.Temperature, true);
-        private static readonly SensorDependency HumidityDependency = new SensorDependency(Measure.Humidity, true);
-        private ObservableSgp4x(I2cDevice device)
+        private readonly IObservable<Measurement> _dependencies;
+
+        private ObservableSgp4x(I2cDevice device, IObservable<Measurement> dependencies)
         {
             _sensor = new Drivers.Sgp4x(device);
+            _dependencies = dependencies;
             Start();
         }
 
@@ -31,14 +29,20 @@ namespace Aether.Devices.Sensors
 
         public static IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
-            new MeasureInfo(Measure.VOC)
+            new MeasureInfo(Measure.VOC),
+            new MeasureInfo(Measure.Humidity),
+            new MeasureInfo(Measure.Temperature)
         };
 
-        public static IEnumerable<SensorDependency> Dependencies => new[] { TemperatureDependency, HumidityDependency };
+        public static IEnumerable<SensorDependency> Dependencies => new[]
+        {
+            new SensorDependency(Measure.Temperature, required: false),
+            new SensorDependency(Measure.Humidity, required: false)
+        };
 
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) => new ObservableSgp4x(device);
+        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) => new ObservableSgp4x(device, dependencies);
 
         protected override void DisposeCore() => _sensor.Dispose();
 
@@ -47,9 +51,26 @@ namespace Aether.Devices.Sensors
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
 
+            var humidityObserver = new ObservedValue<RelativeHumidity>();
+            using IDisposable humididtySubscription = _dependencies
+                .Where(m => m.Measure == Measure.Humidity)
+                .Select(m => m.RelativeHumidity)
+                .Subscribe(humidityObserver);
+
+            var temperatureObserver = new ObservedValue<Temperature>();
+            using IDisposable temperatureSubscription = _dependencies
+                .Where(m => m.Measure == Measure.Temperature)
+                .Select(m => m.Temperature)
+                .Subscribe(temperatureObserver);
+
             while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                VolatileOrganicCompoundIndex? vocIndex = _sensor.GetVOCRawMeasure();
+                Console.WriteLine("attach debugger");
+                Console.ReadKey();
+                humidityObserver.TryGetValueIfChanged(out RelativeHumidity relativeHumidity);
+                temperatureObserver.TryGetValueIfChanged(out Temperature temperature);
+
+                VolatileOrganicCompoundIndex? vocIndex = _sensor.ReadVocMeasurement(relativeHumidity, temperature);
 
                 if (vocIndex is not null) OnNextVolitileOrganicCompound(vocIndex.Value);
             }

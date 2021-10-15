@@ -16,7 +16,7 @@ namespace Aether.Devices.Drivers
 
         private readonly I2cDevice _device;
 
-        Sgp4xAlgorithm.VocAlgorithmParams algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
+        private readonly Sgp4xAlgorithm.VocAlgorithmParams algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
 
         /// <summary>
         /// Instantiates a new <see cref="Sgp4x"/>.
@@ -39,7 +39,7 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void Reset()
         {
-            algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
+            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
 
             ReadOnlySpan<byte> resetCommand = stackalloc byte[2] { 0x00, 0x06 };
             _device.WriteByte(0x00);
@@ -50,8 +50,8 @@ namespace Aether.Devices.Drivers
         /// <summary>
         /// Gets the serial number of the device.
         /// </summary>
-        /// <returns>The serial number of the device.</returns>
-        public byte[] GetSerialNumber()
+        /// <returns>The serial number of the device.If CRC failed, <see langword="null"/>.</returns>
+        public byte[]? GetSerialNumber()
         {
             ReadOnlySpan<byte> getSerialNumberCommand = stackalloc byte[2] { 0x36, 0x82 };
             Span<byte> serialNumberWithCRC = stackalloc byte[9];
@@ -66,25 +66,22 @@ namespace Aether.Devices.Drivers
             readValue = Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(0, 3));
 
             if (readValue is null)
-            {
-                throw new IOException("CRC for receved data is invalid");
-            }
+                //CRC Failed.
+                return null;
 
             // Read second two bytes of serial number (+ CRC)
             readValue = Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(3, 3));
 
             if (readValue is null)
-            {
-                throw new IOException("CRC for receved data is invalid");
-            }
+                //CRC Failed.
+                return null;
 
             // Read third two bytes of serial number (+ CRC)
             readValue = Sensirion.ReadUInt16BigEndianAndCRC8(serialNumberWithCRC.Slice(6, 3));
 
             if (readValue is null)
-            {
-                throw new IOException("CRC for receved data is invalid");
-            }
+                //CRC Failed.
+                return null;
 
             // Read serial number into array excluding CRC bytes
             byte[] serialNumber = new byte[6];
@@ -102,8 +99,8 @@ namespace Aether.Devices.Drivers
         /// <summary>
         /// Runs a self test on the device.
         /// </summary>
-        /// <returns>True if all tests passed. False if one or more tests failed.</returns>
-        public bool RunSelfTest()
+        /// <returns>True if all tests passed. False if one or more tests failed. If a CRC error occurred, <see langword="null"/>.<</returns>
+        public bool? RunSelfTest()
         {
             ReadOnlySpan<byte> runSelfTestCommand = stackalloc byte[2] { 0x28, 0x0E };
             Span<byte> testResultWithCRC = stackalloc byte[3];
@@ -120,9 +117,9 @@ namespace Aether.Devices.Drivers
             readValue = Sensirion.ReadUInt16BigEndianAndCRC8(testResultWithCRC);
 
             if (readValue is null)
-            {
-                throw new IOException("CRC for receved data is invalid");
-            }
+                //CRC Failed
+                return null;
+
             // Check result status (Most significant byte, ignore least significant non-crc byte)
             // 0xD4 = All tests passed
             // 0x4B = One or more test failed
@@ -130,13 +127,13 @@ namespace Aether.Devices.Drivers
         }
 
         /// <summary>
-        /// Gets the raw VOC measurements from the device.
+        /// Gets the VOC measurements from the device.
         /// </summary>
         /// <param name="relativeHumidityValue">The relative humidity value expressed as a percentage.</param>
         /// <param name="temperatureValue">The temperature value expressed in degrees celsius.</param>
-        /// <returns>The raw VOC measurement value from the sensor. If an error occurred, it will be <see langword="null"/>.</returns>
+        /// <returns>The VOC measurement value from the sensor expressed as a VOC Index value. If an error occurred, it will be <see langword="null"/>.</returns>
         /// <remarks>If default relative humidity and temperature values are supplied, humidity compensation will be disabled.</remarks>
-        public VolatileOrganicCompoundIndex? GetVOCRawMeasure(RelativeHumidity? relativeHumidityValue = null, Temperature? temperatureValue = null)
+        public VolatileOrganicCompoundIndex? ReadVocMeasurement(RelativeHumidity? relativeHumidityValue = null, Temperature? temperatureValue = null)
         {
             double rhValue = 50;
             double tempValue = 25;
@@ -187,9 +184,7 @@ namespace Aether.Devices.Drivers
             readValue = Sensirion.ReadUInt16BigEndianAndCRC8(readBuffer);
 
             if (readValue is null)
-            {
-                throw new IOException("CRC for receved data is invalid");
-            }
+                return null;
 
             int vocValue = -1;
             Sgp4xAlgorithm.VocAlgorithm_process(algoParams, readValue.Value, out vocValue);
@@ -202,7 +197,7 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void DisableHotPlate()
         {
-            algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
+            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
             ReadOnlySpan<byte> disableHotPlateCommand = stackalloc byte[2] { 0x36, 0x15 };
             _device.Write(disableHotPlateCommand);
             Thread.Sleep(1);
