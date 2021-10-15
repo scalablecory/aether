@@ -40,7 +40,8 @@ namespace Aether.Devices.Drivers
         public void Reset()
         {
             algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
-            Span<byte> resetCommand = stackalloc byte[2] { 0x00, 0x06 };
+
+            ReadOnlySpan<byte> resetCommand = stackalloc byte[2] { 0x00, 0x06 };
             _device.WriteByte(0x00);
             _device.WriteByte(0x06);
             Thread.Sleep(1);
@@ -52,7 +53,7 @@ namespace Aether.Devices.Drivers
         /// <returns>The serial number of the device.</returns>
         public byte[] GetSerialNumber()
         {
-            Span<byte> getSerialNumberCommand = stackalloc byte[2] { 0x36, 0x82 };
+            ReadOnlySpan<byte> getSerialNumberCommand = stackalloc byte[2] { 0x36, 0x82 };
             Span<byte> serialNumberWithCRC = stackalloc byte[9];
 
             // Write get serial number command
@@ -104,7 +105,7 @@ namespace Aether.Devices.Drivers
         /// <returns>True if all tests passed. False if one or more tests failed.</returns>
         public bool RunSelfTest()
         {
-            Span<byte> runSelfTestCommand = stackalloc byte[2] { 0x28, 0x0E };
+            ReadOnlySpan<byte> runSelfTestCommand = stackalloc byte[2] { 0x28, 0x0E };
             Span<byte> testResultWithCRC = stackalloc byte[3];
 
             // Write run self test command
@@ -202,7 +203,7 @@ namespace Aether.Devices.Drivers
         public void DisableHotPlate()
         {
             algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
-            Span<byte> disableHotPlateCommand = stackalloc byte[2] { 0x36, 0x15 };
+            ReadOnlySpan<byte> disableHotPlateCommand = stackalloc byte[2] { 0x36, 0x15 };
             _device.Write(disableHotPlateCommand);
             Thread.Sleep(1);
         }
