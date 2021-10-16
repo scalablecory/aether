@@ -158,7 +158,6 @@ namespace Aether.Devices.Drivers
                 }
             }
             
-
             Span<byte> writeBuffer = stackalloc byte[8];
             Span<byte> readBuffer = stackalloc byte[3];
 
