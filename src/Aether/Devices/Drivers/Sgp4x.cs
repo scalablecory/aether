@@ -50,7 +50,7 @@ namespace Aether.Devices.Drivers
         /// <summary>
         /// Gets the serial number of the device.
         /// </summary>
-        /// <returns>The serial number of the device.If CRC failed, <see langword="null"/>.</returns>
+        /// <returns>The serial number of the device. If CRC failed, <see langword="null"/>.</returns>
         public byte[]? GetSerialNumber()
         {
             ReadOnlySpan<byte> getSerialNumberCommand = stackalloc byte[2] { 0x36, 0x82 };
