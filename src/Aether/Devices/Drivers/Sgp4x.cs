@@ -16,7 +16,7 @@ namespace Aether.Devices.Drivers
 
         private readonly I2cDevice _device;
 
-        private readonly Sgp4xAlgorithm.VocAlgorithmParams algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
+        private readonly Sgp4xAlgorithm.VocAlgorithmParams _algoParams = new Sgp4xAlgorithm.VocAlgorithmParams();
 
         /// <summary>
         /// Instantiates a new <see cref="Sgp4x"/>.
@@ -27,7 +27,7 @@ namespace Aether.Devices.Drivers
             _device = device;
             Reset();
 
-            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
+            Sgp4xAlgorithm.VocAlgorithm_init(_algoParams);
         }
 
         /// <inheritdoc/>
@@ -39,9 +39,8 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void Reset()
         {
-            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
+            Sgp4xAlgorithm.VocAlgorithm_init(_algoParams);
 
-            ReadOnlySpan<byte> resetCommand = stackalloc byte[2] { 0x00, 0x06 };
             _device.WriteByte(0x00);
             _device.WriteByte(0x06);
             Thread.Sleep(1);
@@ -186,7 +185,7 @@ namespace Aether.Devices.Drivers
                 return null;
 
             int vocValue = -1;
-            Sgp4xAlgorithm.VocAlgorithm_process(algoParams, readValue.Value, out vocValue);
+            Sgp4xAlgorithm.VocAlgorithm_process(_algoParams, readValue.Value, out vocValue);
 
             return new VolatileOrganicCompoundIndex(vocValue);
         }
@@ -196,9 +195,10 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void DisableHotPlate()
         {
-            Sgp4xAlgorithm.VocAlgorithm_init(algoParams);
-            ReadOnlySpan<byte> disableHotPlateCommand = stackalloc byte[2] { 0x36, 0x15 };
-            _device.Write(disableHotPlateCommand);
+            Sgp4xAlgorithm.VocAlgorithm_init(_algoParams);
+
+            _device.WriteByte(0x36);
+            _device.WriteByte(0x15);
             Thread.Sleep(1);
         }
     }

@@ -137,6 +137,7 @@ namespace Aether.Themes
                         Measure.Temperature => measurement.Temperature.DegreesFahrenheit.ToString("N1"),
                         Measure.CO2 => measurement.Co2.PartsPerMillion.ToString("N0"),
                         Measure.BarometricPressure => measurement.BarometricPressure.Atmospheres.ToString("N2"),
+                        Measure.VOC => measurement.Voc.Value.ToString(),
                         _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")
                     };
 
@@ -161,6 +162,7 @@ namespace Aether.Themes
             Measure.Temperature => "°F",
             Measure.CO2 => "CO₂\nppm",
             Measure.BarometricPressure => "Atm",
+            Measure.VOC => "VOC Index",
             _ => throw new Exception($"Unsupported measure '{measure}'.")
         };
     }
