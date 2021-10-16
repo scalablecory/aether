@@ -15,6 +15,7 @@ using UnitsNet;
 
 // TODO: this needs to be replaced by something that reads config, resolves dependencies, etc.
 var runDeviceCommand = new Command("run-device", "Runs an Aether device");
+
 runDeviceCommand.Handler = CommandHandler.Create(async () =>
 {
     // Initialize MS5637.
@@ -25,11 +26,20 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     using I2cDevice scd4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableScd4x.DefaultAddress));
     await using ObservableSensor scdDriver = ObservableScd4x.OpenSensor(scd4xDevice, dependencies: ms5637Driver);
 
+    // Initialize SHT4x
+    // using I2cDevice sht4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSht4x.DefaultAddress));
+    // await using ObservableSensor shtDriver = ObservableSht4x.OpenSensor(sht4xDevice, dependencies: Observable.Empty<Measurement>());
+
+    // Initialize SGP4x, taking a dependency on SCD4x for temperature and relative humidity
+    using I2cDevice sgp4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSgp4x.DefaultAddress));
+    await using ObservableSensor sgpDriver = ObservableSgp4x.OpenSensor(sgp4xDevice, dependencies: scdDriver);
+
     // All the measurements funnel through here.
     // Multiple sensors can support the same measures. In this case, both devices support teperature. To prevent inconsistencies, only use one.
     IObservable<Measurement> measurements = Observable.Merge(
         ms5637Driver.Where(x => x.Measure == Measure.BarometricPressure),
-        scdDriver
+        scdDriver,
+        sgpDriver
         );
 
     // Initialize display.
@@ -42,7 +52,7 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     using var displayDriver = new WaveshareEPD2_9inV2(displayDevice, gpio, dcPinId: 25, rstPinId: 17, busyPinId: 24);
 
     // Initialize the theme, which takes all the measurements and renders them to a display.
-    var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature };
+    var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature, Measure.VOC };
     using IDisposable theme = MultiLineTheme.CreateTheme(displayDriver, lines, measurements);
 
     // Wait for Ctrl+C to exit.
@@ -104,6 +114,24 @@ simulateSensorCommand.Handler = CommandHandler.Create((string name) => RunAndPri
     return sensorInfo.CreateSimulatedSensor(Observable.Empty<Measurement>());
 }));
 
+var testVocCommand = new Command("test-voc", "Tests the VOC sensor while also providing data from SCD4x sensor");
+testVocCommand.Handler = CommandHandler.Create(async () =>
+{
+    // Initialize MS5637.
+    I2cDevice ms5637Device = I2cDevice.Create(new I2cConnectionSettings(1, ObservableMs5637.DefaultAddress));
+    await using ObservableSensor ms5637Driver = ObservableMs5637.OpenSensor(ms5637Device, dependencies: Observable.Empty<Measurement>());
+
+    // Initialize SCD4x, taking a dependency on MS5637 for calibration with barometric pressure.
+    I2cDevice scd4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableScd4x.DefaultAddress));
+    await using ObservableSensor scdDriver = ObservableScd4x.OpenSensor(scd4xDevice, dependencies: ms5637Driver);
+
+    // Initialize SGP4x, taking a dependency on SCD4x for temperature and relative humidity
+    I2cDevice sgp4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSgp4x.DefaultAddress));
+    await using ObservableSensor sgpDriver = ObservableSgp4x.OpenSensor(sgp4xDevice, dependencies: scdDriver);
+
+    await RunAndPrintSensorAsync(() => sgpDriver);
+});
+
 // Temporary command to test the theme.
 // TODO: Make this more like a list/test format similar to sensor.
 var themeTestCommand = new Command("theme-test", "Tests a theme.");
@@ -161,7 +189,8 @@ var rootCommand = new RootCommand()
         simulateSensorCommand
     },
     themeTestCommand,
-    displayTestCommand
+    displayTestCommand,
+    testVocCommand
 };
 
 await rootCommand.InvokeAsync(Environment.CommandLine);
