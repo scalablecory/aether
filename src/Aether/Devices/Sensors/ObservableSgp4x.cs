@@ -67,8 +67,8 @@ namespace Aether.Devices.Sensors
             {
                 VolatileOrganicCompoundIndex? vocIndex = null;
 
-                if (humidityObserver.TryGetValueIfChanged(out RelativeHumidity relativeHumidity) &&
-                    temperatureObserver.TryGetValueIfChanged(out Temperature temperature))
+                if (humidityObserver.TryGetValue(out RelativeHumidity relativeHumidity) &&
+                    temperatureObserver.TryGetValue(out Temperature temperature))
                 {
                     vocIndex = _sensor.ReadVocMeasurement(relativeHumidity, temperature);
                 }
