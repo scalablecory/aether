@@ -57,7 +57,7 @@ namespace Aether.Devices.Sensors
             Measure.Temperature => Temperature.ToString(),
             Measure.CO2 => Co2.ToString(),
             Measure.BarometricPressure => BarometricPressure.ToString(),
-            Measure.VOC => "VOC",
+            Measure.VOC => Voc.ToString(),
             _ => $"{{ Empty {nameof(Measurement)} }}"
         };
     }

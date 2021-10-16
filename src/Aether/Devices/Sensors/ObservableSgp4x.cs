@@ -65,12 +65,20 @@ namespace Aether.Devices.Sensors
 
             while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
-                Console.WriteLine("attach debugger");
-                Console.ReadKey();
-                humidityObserver.TryGetValueIfChanged(out RelativeHumidity relativeHumidity);
-                temperatureObserver.TryGetValueIfChanged(out Temperature temperature);
+                VolatileOrganicCompoundIndex? vocIndex = null;
 
-                VolatileOrganicCompoundIndex? vocIndex = _sensor.ReadVocMeasurement(relativeHumidity, temperature);
+                if (humidityObserver.TryGetValueIfChanged(out RelativeHumidity relativeHumidity) &&
+                    temperatureObserver.TryGetValueIfChanged(out Temperature temperature))
+                {
+                    vocIndex = _sensor.ReadVocMeasurement(relativeHumidity, temperature);
+                }
+                else
+                {
+                    vocIndex = _sensor.ReadVocMeasurement();
+                }
+                
+
+                
 
                 if (vocIndex is not null) OnNextVolitileOrganicCompound(vocIndex.Value);
             }

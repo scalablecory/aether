@@ -48,7 +48,7 @@ namespace Aether.CustomUnits
 
 		public IQuantity ToUnit(UnitSystem unitSystem) => throw new NotImplementedException();
 
-		public override string ToString() => $"{Value} {UnitAbbreviationsCache.Default.GetDefaultAbbreviation(Unit)}";
+		public override string ToString() => $"Volatile organic Compound Index Value: {Value}";
 		public string ToString(string? format, IFormatProvider? formatProvider) => $"VolatileOrganicCompoundIndex ({format}, {formatProvider})";
 		public string ToString(IFormatProvider? provider) => $"VolatileOrganicCompoundIndex ({provider})";
 		public string ToString(IFormatProvider? provider, int significantDigitsAfterRadix) => $"VolatileOrganicCompoundIndex ({provider}, {significantDigitsAfterRadix})";
