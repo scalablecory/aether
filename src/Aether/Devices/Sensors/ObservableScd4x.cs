@@ -1,5 +1,6 @@
 ﻿using Aether.Devices.Sensors.Metadata;
 using Aether.Reactive;
+using Iot.Device.Scd4x;
 using System.Device.I2c;
 using System.Reactive.Linq;
 using UnitsNet;
@@ -8,12 +9,12 @@ namespace Aether.Devices.Sensors
 {
     internal class ObservableScd4x : ObservableSensor, IObservableI2cSensorFactory
     {
-        private readonly Drivers.Scd4x _sensor;
+        private readonly Scd4x _sensor;
         private readonly IObservable<Measurement> _dependencies;
 
         private ObservableScd4x(I2cDevice device, IObservable<Measurement> dependencies)
         {
-            _sensor = new Drivers.Scd4x(device);
+            _sensor = new Scd4x(device);
             _dependencies = dependencies;
             Start();
         }
@@ -37,13 +38,8 @@ namespace Aether.Devices.Sensors
             {
                 while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
                 {
-                    while (!_sensor.CheckDataReady())
-                    {
-                        await Task.Delay(500).ConfigureAwait(false);
-                    }
-
                     (VolumeConcentration? co2, RelativeHumidity? humidity, Temperature? temperature) =
-                        _sensor.ReadPeriodicMeasurement();
+                        await _sensor.ReadPeriodicMeasurementAsync().ConfigureAwait(false);
 
                     if (co2 is not null) OnNextCo2(co2.GetValueOrDefault());
                     if (humidity is not null) OnNextRelativeHumidity(humidity.GetValueOrDefault());
@@ -63,7 +59,7 @@ namespace Aether.Devices.Sensors
 
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => Drivers.Scd4x.DefaultI2cAddress;
+        public static int DefaultAddress => Scd4x.DefaultI2cAddress;
 
         public static string Manufacturer => "Sensirion";
 

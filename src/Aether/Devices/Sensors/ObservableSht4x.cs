@@ -1,4 +1,5 @@
 ﻿using Aether.Devices.Sensors.Metadata;
+using Iot.Device.Sht4x;
 using System.Device.I2c;
 using UnitsNet;
 
@@ -6,11 +7,11 @@ namespace Aether.Devices.Sensors
 {
     internal sealed class ObservableSht4x : ObservableSensor, IObservableI2cSensorFactory
     {
-        private readonly Drivers.Sht4x _sensor;
+        private readonly Sht4x _sensor;
 
         private ObservableSht4x(I2cDevice device)
         {
-            _sensor = new Drivers.Sht4x(device);
+            _sensor = new Sht4x(device);
             Start();
         }
 
@@ -25,7 +26,7 @@ namespace Aether.Devices.Sensors
             while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
             {
                 (RelativeHumidity? humidity, Temperature? temperature) =
-                    _sensor.ReadHumidityAndTemperature();
+                    await _sensor.ReadHumidityAndTemperatureAsync().ConfigureAwait(false);
 
                 if (humidity is not null) OnNextRelativeHumidity(humidity.GetValueOrDefault());
                 if (temperature is not null) OnNextTemperature(temperature.GetValueOrDefault());
@@ -34,7 +35,7 @@ namespace Aether.Devices.Sensors
 
         #region IObservableI2CSensorFactory
 
-        public static int DefaultAddress => Drivers.Sht4x.DefaultI2cAddress;
+        public static int DefaultAddress => Sht4x.DefaultI2cAddress;
 
         public static string Manufacturer => "Sensirion";
 
