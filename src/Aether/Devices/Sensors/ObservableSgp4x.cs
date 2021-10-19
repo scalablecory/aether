@@ -29,9 +29,7 @@ namespace Aether.Devices.Sensors
 
         public static IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
-            new MeasureInfo(Measure.VOC),
-            new MeasureInfo(Measure.Humidity),
-            new MeasureInfo(Measure.Temperature)
+            new MeasureInfo(Measure.VOC)
         };
 
         public static IEnumerable<SensorDependency> Dependencies => new[]
