@@ -35,7 +35,7 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     await using ObservableSensor sgpDriver = ObservableSgp4x.OpenSensor(sgp4xDevice, dependencies: scdDriver);
 
     // All the measurements funnel through here.
-    // Multiple sensors can support the same measures. In this case, both devices support teperature. To prevent inconsistencies, only use one.
+    // Multiple sensors can support the same measures. In this case, both devices support temperature. To prevent inconsistencies, only use one.
     IObservable<Measurement> measurements = Observable.Merge(
         ms5637Driver.Where(x => x.Measure == Measure.BarometricPressure),
         scdDriver,
