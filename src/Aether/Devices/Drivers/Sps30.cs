@@ -34,6 +34,8 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public const int DefaultI2cAddress = 0x69;
 
+        private readonly int MAX_CONSECUTIVE_READ_FAILURES = 30;
+
         private readonly I2cDevice _device;
 
         private bool _isReadingSensorData = false;
@@ -57,9 +59,94 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void Reset()
         {
-            _device.WriteByte(0xD3);
-            _device.WriteByte(0x04);
+            bool sensorBeingRead = false;
+
+            lock (_device)
+            {
+                sensorBeingRead = _isReadingSensorData;
+            }
+
+            if (sensorBeingRead)
+            {
+                throw new InvalidOperationException("Device cannot be reset while sensor data is being read");
+            }
+
+            ReadOnlySpan<byte> resetDeviceCommand = stackalloc byte[] { 0xD3, 0x04 };
+
+            _device.Write(resetDeviceCommand);
+
             Thread.Sleep(1);
+        }
+
+        /// <summary>
+        /// Manually starts a fan cleaning cycle.
+        /// </summary>
+        public void StartFanCleaning()
+        {
+            ReadOnlySpan<byte> startFanCleaningCommand = stackalloc byte[] { 0x56, 0x07 };
+
+            _device.Write(startFanCleaningCommand);
+
+            Thread.Sleep(1);
+        }
+
+        /// <summary>
+        /// Sets the fan cleaning interval.
+        /// </summary>
+        /// <remarks>If ther provided interval is 0. The automatic cleaning interval will be disabled.</remarks>
+        /// <param name="seconds">The interval in seconds which the cleaning cycle will be ran.</param>
+        public void SetFanCleaningInterval(int seconds)
+        {
+            Debug.Assert(seconds >= 0);
+
+            Span<byte> writeCleaningIntervalCommand = stackalloc byte[8];
+
+            // Cleaning interval command
+            writeCleaningIntervalCommand[0] = 0x80;
+            writeCleaningIntervalCommand[1] = 0x04;
+
+            ReadOnlySpan<byte> interval = BitConverter.GetBytes(seconds);
+
+            Sensirion.WriteUInt16BigEndianAndCRC8(writeCleaningIntervalCommand.Slice(2, 3), BitConverter.ToUInt16(interval.Slice(0, 2)));
+            Sensirion.WriteUInt16BigEndianAndCRC8(writeCleaningIntervalCommand.Slice(5, 3), BitConverter.ToUInt16(interval.Slice(2, 2)));
+
+            // Write Set Cleaning Interval Command
+            _device.Write(writeCleaningIntervalCommand);
+
+            Thread.Sleep(1);
+        }
+
+        /// <summary>
+        /// Gets the current fan cleaning interval. 
+        /// </summary>
+        /// <remarks>If the value has been previously set without having reset the device, the previous value will be read.</remarks>
+        /// <returns>The current fan cleaning interval if the device has been reset after setting the interval.</returns>
+        public int? GetFanCleaningInterval()
+        {
+
+            ReadOnlySpan<byte> readCleaningIntervalCommand = stackalloc byte[] { 0x80, 0x04 };
+            Span<byte> receivedCleaningInterval = stackalloc byte[6];
+
+            // Write Read Cleaning Interval Command
+            _device.Write(readCleaningIntervalCommand);
+
+            _device.Read(receivedCleaningInterval);
+
+            ushort? msb = Sensirion.ReadUInt16BigEndianAndCRC8(receivedCleaningInterval.Slice(0, 3));
+            ushort? lsb = Sensirion.ReadUInt16BigEndianAndCRC8(receivedCleaningInterval.Slice(3, 3));
+
+            if (msb == null || lsb == null)
+                return null;
+
+
+            ReadOnlySpan<byte> intervalBytes = stackalloc byte[] {
+                (byte)msb.Value,
+                (byte)(msb.Value >> 8),
+                (byte)lsb.Value,
+                (byte)(lsb.Value >> 8)
+            };
+
+            return BitConverter.ToInt32(intervalBytes);
         }
 
         /// <summary>
@@ -118,11 +205,94 @@ namespace Aether.Devices.Drivers
             return GetDeviceInformation(getArticleCodeCommand);
         }
 
-        public void ReadMeasurementAsync(Func<Sps30ParticulateData?> callback, CancellationToken cancellationToken)
+        /// <summary>
+        /// Reads measurements from the sensor.
+        /// </summary>
+        /// <param name="callback">The callback that is invoked once new sensor data is ready.</param>
+        /// <param name="cancellationToken">The cancelation token.</param>
+        /// <exception cref="ArgumentNullException">If <paramref name="callback"/> is <see langword="null"/>.</exception>
+        public void ReadMeasurementsAsync(Action<Sps30ParticulateData?> callback, CancellationToken cancellationToken)
         {
+            if(callback == null)
+            {
+                throw new ArgumentNullException(nameof(callback));
+            }
 
+            lock (_device)
+            {
+                if (!_isReadingSensorData)
+                {
+                    _isReadingSensorData = true;
+
+                    StartMeasurement();
+
+                    Task.Run(() =>
+                    {
+                        int consecutiveSensorReadFailures = 0;
+                        Action<Sps30ParticulateData?> localCallback = callback;
+
+                        while (!cancellationToken.IsCancellationRequested)
+                        {
+                            // Check if the sensor data is ready
+                            bool? dataReady = CheckSensorDataReady();
+
+                            if (dataReady is null)
+                            {
+                                // If we have had consecutive read failures, abort.
+                                if (++consecutiveSensorReadFailures >= MAX_CONSECUTIVE_READ_FAILURES)
+                                    break;
+
+                                // This is due to CRC error
+                                Thread.Sleep(1000);
+                            }
+                            else if(!dataReady.Value)
+                            {
+                                Thread.Sleep(1000);
+                            }
+                            else if (dataReady.Value)
+                            {
+                                // Sensor data ready, read it
+                                Sps30ParticulateData? sensorData = ReadMeasuredValues();
+
+                                if (sensorData is null)
+                                {
+                                    // If we have had consecutive read failures, abort.
+                                    if (++consecutiveSensorReadFailures >= MAX_CONSECUTIVE_READ_FAILURES)
+                                        break;
+                                }
+                                else
+                                {
+                                    consecutiveSensorReadFailures = 0;
+
+                                    try
+                                    {
+                                        localCallback(sensorData);
+                                    }
+                                    catch (Exception)
+                                    {
+                                        // If callback throws, abort.
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
+                        StopMeasurement();
+
+                        lock (_device)
+                        {
+                            _isReadingSensorData = false;
+                        }
+
+                    }, cancellationToken);
+                }
+            }
         }
 
+        /// <summary>
+        /// Reads sensor measurement values.
+        /// </summary>
+        /// <returns>The measurement data. If a CRC error occurred, <see langword="null"/>.</returns>
         private Sps30ParticulateData? ReadMeasuredValues()
         {
             Sps30ParticulateData particulateData = new Sps30ParticulateData();
@@ -225,6 +395,11 @@ namespace Aether.Devices.Drivers
             return particulateData;
         }
 
+        /// <summary>
+        /// Process measurement data into a float value.
+        /// </summary>
+        /// <param name="measurementData">The measurement data bytes.</param>
+        /// <returns>A float value of the measurement data. If a CRC error occurred, <see langword="null"/>.</returns>
         private float? ProcessMeasurementBytes(ReadOnlySpan<byte> measurementData)
         {
             Debug.Assert(measurementData.Length > 6);
@@ -247,6 +422,9 @@ namespace Aether.Devices.Drivers
             return BitConverter.ToSingle(measurementBytes);
         }
 
+        /// <summary>
+        /// Starts measurements on the device.
+        /// </summary>
         private void StartMeasurement()
         {
             // Start measurement command 0x00, 0x01
@@ -259,6 +437,9 @@ namespace Aether.Devices.Drivers
             Thread.Sleep(1);
         }
 
+        /// <summary>
+        /// Stops measurements on the device.
+        /// </summary>
         private void StopMeasurement()
         {
             ReadOnlySpan<byte> stopMeasurementCommand = stackalloc byte[] { 0x01, 0x04 };
@@ -269,7 +450,10 @@ namespace Aether.Devices.Drivers
             Thread.Sleep(1);
         }
 
-
+        /// <summary>
+        /// Checks if the sensor data is ready to be read.
+        /// </summary>
+        /// <returns>True if ready, false if not. If a CRC error occurred, <see langword="null"./></returns>
         private bool? CheckSensorDataReady()
         {
             ReadOnlySpan<byte> readDataReadyCommand = stackalloc byte[] { 0x02, 0x02 };
