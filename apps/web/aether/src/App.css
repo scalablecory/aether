@@ -1,0 +1,103 @@
+.container {
+  margin-top: 16px;
+}
+
+.chart-container {
+  background-image: url("./assets/sky.jpg");
+  /* Full height */
+  height: 100%;
+
+  /* Center and scale the image nicely */
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.air-quality-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#air-quality {
+  font-family: Arial, Helvetica, sans-serif;
+  border-collapse: collapse;
+}
+
+#air-quality td,
+#air-quality th {
+  border: 1px solid #ddd;
+  padding: 10px;
+}
+
+#air-quality th {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  text-align: left;
+  background-color: rgb(225, 235, 244);
+  color: black;
+}
+
+.green td {
+  background-color: green;
+  color: white;
+}
+
+.yellow td {
+  background-color: yellow;
+  color: black;
+}
+
+.orange td {
+  background-color: orange;
+  color: white;
+}
+
+.purple td {
+  background-color: purple;
+  color: white;
+}
+
+.red td {
+  background-color: red;
+  color: white;
+}
+
+.maroon td {
+  background-color: maroon;
+  color: white;
+}
+
+#headingGreen .accordion-button {
+  background-color: green;
+  color: white;
+}
+
+#headingYellow .accordion-button {
+  background-color: yellow;
+  color: black;
+}
+
+#headingOrange .accordion-button {
+  background-color: orange;
+  color: white;
+}
+
+#headingPurple .accordion-button {
+  background-color: purple;
+  color: white;
+}
+
+#headingRed .accordion-button {
+  background-color: red;
+  color: white;
+}
+
+#headingMaroon .accordion-button {
+  background-color: maroon;
+  color: white;
+}
+
+.connectBtn {
+  margin-right: 16px;
+}
