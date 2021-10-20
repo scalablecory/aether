@@ -1,34 +1,30 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Device.I2c;
+﻿using System.Device.I2c;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using UnitsNet;
 
 namespace Aether.Devices.Drivers
 {
 
     public struct Sps30ParticulateData
     {
-        public float MassConcentrationPM1_0;
-        public float MassConcentrationPM2_5;
-        public float MassConcentrationPM4_0;
-        public float MassConcentrationPM10_0;
-        public float NumberConcentrationPM0_5;
-        public float NumberConcentrationPM1_0;
-        public float NumberConcentrationPM2_5;
-        public float NumberConcentrationPM4_0;
-        public float NumberConcentrationPM10_0;
-        public float TypicalParticalSize;
+        public MassConcentration MassConcentrationPM1_0;
+        public MassConcentration MassConcentrationPM2_5;
+        public MassConcentration MassConcentrationPM4_0;
+        public MassConcentration MassConcentrationPM10_0;
+        public float NumberConcentrationP0_5;
+        public float NumberConcentrationP1_0;
+        public float NumberConcentrationP2_5;
+        public float NumberConcentrationP4_0;
+        public float NumberConcentrationP10_0;
+        public float TypicalParticleSize;
     }
 
     /// <summary>
     /// Air Particulate Sensor SPS30
     /// </summary>
     public sealed class Sps30 : System.IDisposable
-    {
-
+    {        
         /// <summary>
         /// The default I²C address of this device.
         /// </summary>
@@ -161,23 +157,24 @@ namespace Aether.Devices.Drivers
 
             // Write get device information command
             _device.Write(getDeviceInformationCommand);
+            Thread.Sleep(1);
 
             // Read raw device data
             _device.Read(deviceInformationWithCRC);
 
             byte[] deviceInformationBytes = new byte[32];
 
-            for (int i = 0; i + 3 < deviceInformationWithCRC.Length; i+=4)
+            for (int infoCrcIndex = 0, devInfoIndex = 0; infoCrcIndex + 3 < deviceInformationWithCRC.Length; infoCrcIndex+=3)
             {
-                ushort? stringChars = Sensirion.ReadUInt16BigEndianAndCRC8(deviceInformationWithCRC.Slice(i, 3));
+                ushort? stringChars = Sensirion.ReadUInt16BigEndianAndCRC8(deviceInformationWithCRC.Slice(infoCrcIndex, 3));
                 
                 if(stringChars is null)
                 {
                     return null;
                 }
 
-                deviceInformationBytes[i] = (byte)stringChars;
-                deviceInformationBytes[i + 1] = (byte)(stringChars >> 8);
+                deviceInformationBytes[devInfoIndex++] = (byte)stringChars;
+                deviceInformationBytes[devInfoIndex++] = (byte)(stringChars >> 8);
             }
 
             return Encoding.ASCII.GetString(deviceInformationBytes);
@@ -318,7 +315,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.MassConcentrationPM1_0 = measurement.Value;
+            particulateData.MassConcentrationPM1_0 = new MassConcentration(measurement.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter); ;
 
             // Parse Mass Concentration PM2.5
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(6, 6));
@@ -326,7 +323,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.MassConcentrationPM2_5 = measurement.Value;
+            particulateData.MassConcentrationPM2_5 = new MassConcentration(measurement.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter); ;
 
             // Parse Mass Concentration PM4.0
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(12, 6));
@@ -334,7 +331,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.MassConcentrationPM4_0 = measurement.Value;
+            particulateData.MassConcentrationPM4_0 = new MassConcentration(measurement.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter); ;
 
             // Parse Mass Concentration PM10
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(18, 6));
@@ -342,7 +339,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.MassConcentrationPM10_0 = measurement.Value;
+            particulateData.MassConcentrationPM10_0 = new MassConcentration(measurement.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter); ;
 
             // Parse Number Concentration PM0_5
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(24, 6));
@@ -350,7 +347,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationPM0_5 = measurement.Value;
+            particulateData.NumberConcentrationP0_5 = measurement.Value;
 
             // Parse Number Concentration PM1_0
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(30, 6));
@@ -358,7 +355,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationPM1_0 = measurement.Value;
+            particulateData.NumberConcentrationP1_0 = measurement.Value;
 
             // Parse Number Concentration PM2_5
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(36, 6));
@@ -366,7 +363,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationPM2_5 = measurement.Value;
+            particulateData.NumberConcentrationP2_5 = measurement.Value;
 
             // Parse Number Concentration PM4_0
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(42, 6));
@@ -374,7 +371,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationPM4_0 = measurement.Value;
+            particulateData.NumberConcentrationP4_0 = measurement.Value;
 
             // Parse Number Concentration PM10
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(48, 6));
@@ -382,7 +379,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationPM10_0 = measurement.Value;
+            particulateData.NumberConcentrationP10_0 = measurement.Value;
 
             // Parse Typical Particle Size
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(54, 6));
@@ -390,7 +387,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.TypicalParticalSize = measurement.Value;
+            particulateData.TypicalParticleSize = measurement.Value;
 
             return particulateData;
         }
@@ -402,7 +399,7 @@ namespace Aether.Devices.Drivers
         /// <returns>A float value of the measurement data. If a CRC error occurred, <see langword="null"/>.</returns>
         private float? ProcessMeasurementBytes(ReadOnlySpan<byte> measurementData)
         {
-            Debug.Assert(measurementData.Length > 6);
+            Debug.Assert(measurementData.Length == 6);
 
             ushort? upperBytes = Sensirion.ReadUInt16BigEndianAndCRC8(measurementData.Slice(0, 3));
             ushort? lowerBytes = Sensirion.ReadUInt16BigEndianAndCRC8(measurementData.Slice(3, 3));
@@ -412,11 +409,13 @@ namespace Aether.Devices.Drivers
                 return null;
             }
 
+            // Data received is BigEndian, handle the byte filtering and reording here
             ReadOnlySpan<byte> measurementBytes = stackalloc byte[4]
-            {   (byte)upperBytes,
-                (byte)(upperBytes >> 8),
+            {
                 (byte)lowerBytes,
-                (byte)(lowerBytes >> 8)
+                (byte)(lowerBytes >> 8),
+                (byte)upperBytes,
+                (byte)(upperBytes >> 8),
             };
 
             return BitConverter.ToSingle(measurementBytes);
@@ -427,9 +426,12 @@ namespace Aether.Devices.Drivers
         /// </summary>
         private void StartMeasurement()
         {
+            Span<byte> bytes = stackalloc byte[3];
+            Sensirion.WriteUInt16BigEndianAndCRC8(bytes, 0x0300);
+
             // Start measurement command 0x00, 0x01
             // Measurement mode 0x03 with dummy byte 0x00
-            ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[4] { 0x00, 0x01, 0x03, 0x00 };
+            ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, bytes[0], bytes[1], bytes[2] };
 
             // Write start measurement
             _device.Write(startMeasurementCommand);
@@ -457,7 +459,7 @@ namespace Aether.Devices.Drivers
         private bool? CheckSensorDataReady()
         {
             ReadOnlySpan<byte> readDataReadyCommand = stackalloc byte[] { 0x02, 0x02 };
-            Span<byte> dataReadyResult = stackalloc byte[2];
+            Span<byte> dataReadyResult = stackalloc byte[3];
 
             // Write check sensor data ready command
             _device.Write(readDataReadyCommand);
@@ -473,7 +475,7 @@ namespace Aether.Devices.Drivers
             }
 
             // Hi byte is always 0x00 so ignore. Low byte will be 0x01 for ready, 0x00 for not ready.
-            return (resultData >> 8) == 1;
+            return resultData == 1;
         }
     }
 }

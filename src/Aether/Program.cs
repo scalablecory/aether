@@ -132,6 +132,17 @@ testVocCommand.Handler = CommandHandler.Create(async () =>
     await RunAndPrintSensorAsync(() => sgpDriver);
 });
 
+var particleTestCommand = new Command("test-sps30", "Tests the air particulate sensor SPS30");
+particleTestCommand.Handler = CommandHandler.Create(async () =>
+{
+    Console.WriteLine("Starting particulate sensor read");
+    Console.ReadKey();
+    I2cDevice sps30Device = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSps30.DefaultAddress));
+    await using ObservableSensor spsDriver = ObservableSps30.OpenSensor(sps30Device, dependencies: Observable.Empty<Measurement>());
+
+    await RunAndPrintSensorAsync(() => spsDriver);
+});
+
 // Temporary command to test the theme.
 // TODO: Make this more like a list/test format similar to sensor.
 var themeTestCommand = new Command("theme-test", "Tests a theme.");
@@ -190,7 +201,8 @@ var rootCommand = new RootCommand()
     },
     themeTestCommand,
     displayTestCommand,
-    testVocCommand
+    testVocCommand,
+    particleTestCommand
 };
 
 await rootCommand.InvokeAsync(Environment.CommandLine);

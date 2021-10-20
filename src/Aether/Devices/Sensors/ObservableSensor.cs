@@ -1,4 +1,5 @@
 ﻿using Aether.CustomUnits;
+using Aether.Devices.Drivers;
 using Aether.Devices.Sensors.Metadata;
 using System.Diagnostics.CodeAnalysis;
 using System.Reactive.Subjects;
@@ -103,5 +104,32 @@ namespace Aether.Devices.Sensors
 
         protected void OnNextVolitileOrganicCompound(VolatileOrganicCompoundIndex vocIndex) =>
             _measurements.OnNext(Measurement.FromVoc(vocIndex));
+
+        protected void OnNextParticulate1_0PMassConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From1_0PMassConcentraiton(particulateData.MassConcentrationPM1_0));
+
+        protected void OnNextParticulate2_5PMassConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From2_5PMassConcentraiton(particulateData.MassConcentrationPM2_5));
+
+        protected void OnNextParticulate4_0PMassConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From4_0PMassConcentraiton(particulateData.MassConcentrationPM4_0));
+
+        protected void OnNextParticulate10_0PMassConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From10_0PMassConcentraiton(particulateData.MassConcentrationPM10_0));
+
+        protected void OnNextParticulate0_5PNumberConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+         _measurements.OnNext(Measurement.From0_5NumberConcentraiton(particulateData.NumberConcentrationP0_5));
+
+        protected void OnNextParticulate1_0PNumberConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From1_0NumberConcentraiton(particulateData.NumberConcentrationP1_0));
+
+        protected void OnNextParticulate2_5PNumberConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From2_5NumberConcentraiton(particulateData.NumberConcentrationP2_5));
+
+        protected void OnNextParticulate4_0PNumberConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From4_0NumberConcentraiton(particulateData.NumberConcentrationP4_0));
+
+        protected void OnNextParticulate10_0PNumberConcentrationMeasurement(Sps30ParticulateData particulateData) =>
+            _measurements.OnNext(Measurement.From10_0NumberConcentraiton(particulateData.NumberConcentrationP10_0));
     }
 }
