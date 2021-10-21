@@ -54,7 +54,7 @@ namespace Aether.CustomUnits
 
         public IQuantity ToUnit(UnitSystem unitSystem) => throw new NotImplementedException();
 
-        public override string ToString() => $"{string.Format("{0:0.00}", Value)}/ cm³";
+        public override string ToString() => $"{string.Format("{0:0.00}", Value)}/cm³";
         public string ToString(string? format, IFormatProvider? formatProvider) => $"Number Concentration ({format}, {formatProvider})";
         public string ToString(IFormatProvider? provider) => $"Number Concentration ({provider})";
         public string ToString(IFormatProvider? provider, int significantDigitsAfterRadix) => $"Number Concentration ({provider}, {significantDigitsAfterRadix})";
