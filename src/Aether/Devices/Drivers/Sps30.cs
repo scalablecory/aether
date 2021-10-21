@@ -1,6 +1,7 @@
 ﻿using System.Device.I2c;
 using System.Diagnostics;
 using System.Text;
+using Aether.CustomUnits;
 using UnitsNet;
 
 namespace Aether.Devices.Drivers
@@ -12,12 +13,12 @@ namespace Aether.Devices.Drivers
         public MassConcentration MassConcentrationPM2_5;
         public MassConcentration MassConcentrationPM4_0;
         public MassConcentration MassConcentrationPM10_0;
-        public float NumberConcentrationP0_5;
-        public float NumberConcentrationP1_0;
-        public float NumberConcentrationP2_5;
-        public float NumberConcentrationP4_0;
-        public float NumberConcentrationP10_0;
-        public float TypicalParticleSize;
+        public NumberConcentration NumberConcentrationP0_5;
+        public NumberConcentration NumberConcentrationP1_0;
+        public NumberConcentration NumberConcentrationP2_5;
+        public NumberConcentration NumberConcentrationP4_0;
+        public NumberConcentration NumberConcentrationP10_0;
+        public Length TypicalParticleSize;
     }
 
     /// <summary>
@@ -30,14 +31,12 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public const int DefaultI2cAddress = 0x69;
 
-        private readonly int MAX_CONSECUTIVE_READ_FAILURES = 30;
-
         private readonly I2cDevice _device;
 
         private bool _isReadingSensorData = false;
 
         /// <summary>
-        /// Instantiates a new <see cref="Sgp4x"/>.
+        /// Instantiates a new <see cref="Sps30"/>.
         /// </summary>
         /// <param name="device">The I²C device to operate on.</param>
         public Sps30(I2cDevice device)
@@ -55,21 +54,17 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void Reset()
         {
-            bool sensorBeingRead = false;
+            ReadOnlySpan<byte> resetDeviceCommand = stackalloc byte[] { 0xD3, 0x04 };
 
             lock (_device)
             {
-                sensorBeingRead = _isReadingSensorData;
+                if (_isReadingSensorData)
+                {
+                    throw new InvalidOperationException("Device cannot be reset while sensor data is being read");
+                }
+
+                _device.Write(resetDeviceCommand);
             }
-
-            if (sensorBeingRead)
-            {
-                throw new InvalidOperationException("Device cannot be reset while sensor data is being read");
-            }
-
-            ReadOnlySpan<byte> resetDeviceCommand = stackalloc byte[] { 0xD3, 0x04 };
-
-            _device.Write(resetDeviceCommand);
 
             Thread.Sleep(1);
         }
@@ -152,7 +147,6 @@ namespace Aether.Devices.Drivers
         /// <returns>An ASCII string representing the requested device data.</returns>
         private string? GetDeviceInformation(ReadOnlySpan<byte> getDeviceInformationCommand)
         {
-            // ReadOnlySpan<byte> getDeviceDataCommand = stackalloc byte[2] 
             Span<byte> deviceInformationWithCRC = stackalloc byte[48];
 
             // Write get device information command
@@ -203,94 +197,10 @@ namespace Aether.Devices.Drivers
         }
 
         /// <summary>
-        /// Reads measurements from the sensor.
-        /// </summary>
-        /// <param name="callback">The callback that is invoked once new sensor data is ready.</param>
-        /// <param name="cancellationToken">The cancelation token.</param>
-        /// <exception cref="ArgumentNullException">If <paramref name="callback"/> is <see langword="null"/>.</exception>
-        public void ReadMeasurementsAsync(Action<Sps30ParticulateData?> callback, CancellationToken cancellationToken)
-        {
-            if(callback == null)
-            {
-                throw new ArgumentNullException(nameof(callback));
-            }
-
-            lock (_device)
-            {
-                if (!_isReadingSensorData)
-                {
-                    _isReadingSensorData = true;
-
-                    StartMeasurement();
-
-                    Task.Run(() =>
-                    {
-                        int consecutiveSensorReadFailures = 0;
-                        Action<Sps30ParticulateData?> localCallback = callback;
-
-                        while (!cancellationToken.IsCancellationRequested)
-                        {
-                            // Check if the sensor data is ready
-                            bool? dataReady = CheckSensorDataReady();
-
-                            if (dataReady is null)
-                            {
-                                // If we have had consecutive read failures, abort.
-                                if (++consecutiveSensorReadFailures >= MAX_CONSECUTIVE_READ_FAILURES)
-                                    break;
-
-                                // This is due to CRC error
-                                Thread.Sleep(1000);
-                            }
-                            else if(!dataReady.Value)
-                            {
-                                Thread.Sleep(1000);
-                            }
-                            else if (dataReady.Value)
-                            {
-                                // Sensor data ready, read it
-                                Sps30ParticulateData? sensorData = ReadMeasuredValues();
-
-                                if (sensorData is null)
-                                {
-                                    // If we have had consecutive read failures, abort.
-                                    if (++consecutiveSensorReadFailures >= MAX_CONSECUTIVE_READ_FAILURES)
-                                        break;
-                                }
-                                else
-                                {
-                                    consecutiveSensorReadFailures = 0;
-
-                                    try
-                                    {
-                                        localCallback(sensorData);
-                                    }
-                                    catch (Exception)
-                                    {
-                                        // If callback throws, abort.
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        StopMeasurement();
-
-                        lock (_device)
-                        {
-                            _isReadingSensorData = false;
-                        }
-
-                    }, cancellationToken);
-                }
-            }
-        }
-
-        /// <summary>
         /// Reads sensor measurement values.
         /// </summary>
         /// <returns>The measurement data. If a CRC error occurred, <see langword="null"/>.</returns>
-        private Sps30ParticulateData? ReadMeasuredValues()
+        public Sps30ParticulateData? ReadMeasuredValues()
         {
             Sps30ParticulateData particulateData = new Sps30ParticulateData();
 
@@ -298,12 +208,20 @@ namespace Aether.Devices.Drivers
 
             Span<byte> measuredValuesWithCRC = stackalloc byte[60];
 
-            // Write read measured values command
-            _device.Write(readMeasuredValuesCommand);
+            lock(_device)
+            {
+                if(!_isReadingSensorData)
+                {
+                    throw new InvalidOperationException("StartMeasure must be called prior to reading measured values");
+                }
 
-            // Read measured values with CRC data
-            _device.Read(measuredValuesWithCRC);
+                // Write read measured values command
+                _device.Write(readMeasuredValuesCommand);
 
+                // Read measured values with CRC data
+                _device.Read(measuredValuesWithCRC);
+            }
+            
             // Parse values and populate particulate data
             // Values are IEEE754 float values 4 bytes each
 
@@ -347,7 +265,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationP0_5 = measurement.Value;
+            particulateData.NumberConcentrationP0_5 = new NumberConcentration(measurement.Value);
 
             // Parse Number Concentration PM1_0
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(30, 6));
@@ -355,7 +273,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationP1_0 = measurement.Value;
+            particulateData.NumberConcentrationP1_0 = new NumberConcentration(measurement.Value);
 
             // Parse Number Concentration PM2_5
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(36, 6));
@@ -363,7 +281,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationP2_5 = measurement.Value;
+            particulateData.NumberConcentrationP2_5 = new NumberConcentration(measurement.Value);
 
             // Parse Number Concentration PM4_0
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(42, 6));
@@ -371,7 +289,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationP4_0 = measurement.Value;
+            particulateData.NumberConcentrationP4_0 = new NumberConcentration(measurement.Value);
 
             // Parse Number Concentration PM10
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(48, 6));
@@ -379,7 +297,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.NumberConcentrationP10_0 = measurement.Value;
+            particulateData.NumberConcentrationP10_0 = new NumberConcentration(measurement.Value);
 
             // Parse Typical Particle Size
             measurement = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(54, 6));
@@ -387,7 +305,7 @@ namespace Aether.Devices.Drivers
             if (measurement is null)
                 return null;
 
-            particulateData.TypicalParticleSize = measurement.Value;
+            particulateData.TypicalParticleSize = new Length(measurement.Value, UnitsNet.Units.LengthUnit.Micrometer);
 
             return particulateData;
         }
@@ -424,7 +342,7 @@ namespace Aether.Devices.Drivers
         /// <summary>
         /// Starts measurements on the device.
         /// </summary>
-        private void StartMeasurement()
+        public void StartMeasurement()
         {
             Span<byte> bytes = stackalloc byte[3];
             Sensirion.WriteUInt16BigEndianAndCRC8(bytes, 0x0300);
@@ -433,8 +351,18 @@ namespace Aether.Devices.Drivers
             // Measurement mode 0x03 with dummy byte 0x00
             ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, bytes[0], bytes[1], bytes[2] };
 
-            // Write start measurement
-            _device.Write(startMeasurementCommand);
+            lock(_device)
+            {
+                if (_isReadingSensorData)
+                {
+                    throw new InvalidOperationException("Sensor has already started measurements");
+                }
+
+                // Write start measurement
+                _device.Write(startMeasurementCommand);
+
+                _isReadingSensorData = true;
+            }
 
             Thread.Sleep(1);
         }
@@ -442,12 +370,22 @@ namespace Aether.Devices.Drivers
         /// <summary>
         /// Stops measurements on the device.
         /// </summary>
-        private void StopMeasurement()
+        public void StopMeasurement()
         {
             ReadOnlySpan<byte> stopMeasurementCommand = stackalloc byte[] { 0x01, 0x04 };
 
-            // Write stop measurement command
-            _device.Write(stopMeasurementCommand);
+            lock (_device)
+            {
+                if(!_isReadingSensorData)
+                {
+                    throw new InvalidOperationException("Sensor has already stopped measurements");
+                }
+
+                // Write stop measurement command
+                _device.Write(stopMeasurementCommand);
+
+                _isReadingSensorData = false;
+            }
 
             Thread.Sleep(1);
         }
@@ -456,17 +394,25 @@ namespace Aether.Devices.Drivers
         /// Checks if the sensor data is ready to be read.
         /// </summary>
         /// <returns>True if ready, false if not. If a CRC error occurred, <see langword="null"./></returns>
-        private bool? CheckSensorDataReady()
+        public bool? CheckSensorDataReady()
         {
             ReadOnlySpan<byte> readDataReadyCommand = stackalloc byte[] { 0x02, 0x02 };
             Span<byte> dataReadyResult = stackalloc byte[3];
 
-            // Write check sensor data ready command
-            _device.Write(readDataReadyCommand);
+            lock (_device)
+            {
+                if (!_isReadingSensorData)
+                {
+                    throw new InvalidOperationException("StartMeasure must be called prior to checking if sensor data is ready");
+                }
 
-            // Read data ready result
-            _device.Read(dataReadyResult);
+                // Write check sensor data ready command
+                _device.Write(readDataReadyCommand);
 
+                // Read data ready result
+                _device.Read(dataReadyResult);
+            }
+            
             ushort? resultData = Sensirion.ReadUInt16BigEndianAndCRC8(dataReadyResult);
 
             if(resultData is null)

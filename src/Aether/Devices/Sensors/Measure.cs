@@ -74,6 +74,11 @@ namespace Aether.Devices.Sensors
         /// <summary>
         /// Corresponds to a count of particulate 0.3 - 10.0 micrometers.
         /// </summary>
-        Particulate10_0NumberConcentration
+        Particulate10_0NumberConcentration,
+
+        /// <summary>
+        /// Corresponds to an average <see cref="Length"/> of particles.
+        /// </summary>
+        ParticulateTypicalSize
     }
 }

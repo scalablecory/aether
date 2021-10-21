@@ -40,6 +40,7 @@ namespace Aether.Devices.Sensors
             new MeasureInfo(Measure.Particulate2_5NumberConcentration),
             new MeasureInfo(Measure.Particulate4_0NumberConcentration),
             new MeasureInfo(Measure.Particulate10_0NumberConcentration),
+            new MeasureInfo(Measure.ParticulateTypicalSize)
         };
 
         public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
@@ -54,41 +55,42 @@ namespace Aether.Devices.Sensors
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
 
-            Sps30ParticulateData? particulateData = new Sps30ParticulateData();
+            _sensor.StartMeasurement();
 
-            _sensor.ReadMeasurementsAsync((pd) =>
+            try
             {
-                lock (_sensor)
+                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
                 {
-                    particulateData = pd;
-                }
-            }, cancellationToken);
+                    bool? sensorDataReady = _sensor.CheckSensorDataReady();
 
-            while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
-            {
-                Sps30ParticulateData? localData;
-                Console.WriteLine(_sensor.GetSerialNumber());
-                Console.WriteLine(_sensor.GetArticleCode());
-                lock (_sensor)
-                {
-                    localData = particulateData;
-                }
+                    if(sensorDataReady is not null && sensorDataReady.Value)
+                    {
+                        Sps30ParticulateData? particulateData = _sensor.ReadMeasuredValues();
 
-                if(localData is not null)
-                {
-                    OnNextParticulate1_0PMassConcentrationMeasurement(localData.Value);
-                    OnNextParticulate2_5PMassConcentrationMeasurement(localData.Value);
-                    OnNextParticulate4_0PMassConcentrationMeasurement(localData.Value);
-                    OnNextParticulate10_0PMassConcentrationMeasurement(localData.Value);
+                        if (particulateData is not null)
+                        {
+                            OnNextParticulate1_0PMassConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulate2_5PMassConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulate4_0PMassConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulate10_0PMassConcentrationMeasurement(particulateData.Value);
 
-                    OnNextParticulate0_5PNumberConcentrationMeasurement(localData.Value);
-                    OnNextParticulate1_0PNumberConcentrationMeasurement(localData.Value);
-                    OnNextParticulate2_5PNumberConcentrationMeasurement(localData.Value);
-                    OnNextParticulate4_0PNumberConcentrationMeasurement(localData.Value);
-                    OnNextParticulate10_0PNumberConcentrationMeasurement(localData.Value);
-                }
+                            OnNextParticulate0_5PNumberConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulate1_0PNumberConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulate2_5PNumberConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulate4_0PNumberConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulate10_0PNumberConcentrationMeasurement(particulateData.Value);
+                            OnNextParticulateTypicalSize(particulateData.Value);
+                        }
+                    }
                     
+                }
             }
+            finally
+            {
+                _sensor.StopMeasurement();
+            }
+
+            
         }
     }
 }

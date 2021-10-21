@@ -42,7 +42,8 @@ namespace Aether.CustomUnits
 
         public IQuantity ToUnit(Enum unit)
         {
-            if (unit is VolatileOrganicCompoundIndexUnit howMuchUnit) return new VolatileOrganicCompoundIndex(As(unit), howMuchUnit);
+            if (unit is VolatileOrganicCompoundIndexUnit vocIndexUnit)
+                return new VolatileOrganicCompoundIndex(As(unit), vocIndexUnit);
             throw new ArgumentException("Must be of type VolatileOrganicCompoundIndexUnit.", nameof(unit));
         }
 

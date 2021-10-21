@@ -33,6 +33,12 @@ namespace Aether.Devices.Sensors
         public MassConcentration MassConcentration =>
             new MassConcentration(_value, (MassConcentrationUnit)_unit);
 
+        public NumberConcentration NumberConcentration =>
+            new NumberConcentration(_value, (NumberConcentrationUnit)_unit);
+
+        public Length Length =>
+            new Length(_value, (LengthUnit)_unit);
+
         private Measurement(double value, int unit, Measure measure)
         {
             _value = value;
@@ -55,32 +61,35 @@ namespace Aether.Devices.Sensors
         public static Measurement FromVoc(VolatileOrganicCompoundIndex vocIndex) =>
             new Measurement(vocIndex.Value, (int)vocIndex.Unit, Measure.VOC);
 
-        public static Measurement From1_0PMassConcentraiton(MassConcentration massConcentration) =>
+        public static Measurement From1_0PMassConcentration(MassConcentration massConcentration) =>
             new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate1_0PMassConcentration);
 
-        public static Measurement From2_5PMassConcentraiton(MassConcentration massConcentration) =>
+        public static Measurement From2_5PMassConcentration(MassConcentration massConcentration) =>
             new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate2_5PMassConcentration);
 
-        public static Measurement From4_0PMassConcentraiton(MassConcentration massConcentration) =>
+        public static Measurement From4_0PMassConcentration(MassConcentration massConcentration) =>
             new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate4_0PMassConcentration);
 
-        public static Measurement From10_0PMassConcentraiton(MassConcentration massConcentration) =>
+        public static Measurement From10_0PMassConcentration(MassConcentration massConcentration) =>
              new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate10_0PMassConcentration);
 
-        public static Measurement From0_5NumberConcentraiton(float numberConcentration) =>
-            new Measurement(numberConcentration, 0, Measure.Particulate0_5NumberConcentration);
+        public static Measurement From0_5NumberConcentration(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.Particulate0_5NumberConcentration);
 
-        public static Measurement From1_0NumberConcentraiton(float numberConcentration) =>
-            new Measurement(numberConcentration, 0, Measure.Particulate1_0NumberConcentration);
+        public static Measurement From1_0NumberConcentration(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.Particulate1_0NumberConcentration);
 
-        public static Measurement From2_5NumberConcentraiton(float numberConcentration) =>
-            new Measurement(numberConcentration, 0, Measure.Particulate2_5NumberConcentration);
+        public static Measurement From2_5NumberConcentration(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.Particulate2_5NumberConcentration);
 
-        public static Measurement From4_0NumberConcentraiton(float numberConcentration) =>
-            new Measurement(numberConcentration, 0, Measure.Particulate4_0NumberConcentration);
+        public static Measurement From4_0NumberConcentration(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.Particulate4_0NumberConcentration);
 
-        public static Measurement From10_0NumberConcentraiton(float numberConcentration) =>
-            new Measurement(numberConcentration, 0, Measure.Particulate10_0NumberConcentration);
+        public static Measurement From10_0NumberConcentration(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.Particulate10_0NumberConcentration);
+
+        public static Measurement FromParticulateTypicalSize(Length length) =>
+            new Measurement(length.Value, (int)length.Unit, Measure.ParticulateTypicalSize);
 
         public override string ToString() => Measure switch
         {
@@ -93,11 +102,12 @@ namespace Aether.Devices.Sensors
             Measure.Particulate2_5PMassConcentration => MassConcentration.ToString(),
             Measure.Particulate4_0PMassConcentration => MassConcentration.ToString(),
             Measure.Particulate10_0PMassConcentration => MassConcentration.ToString(),
-            Measure.Particulate0_5NumberConcentration => $"{_value}/Cubic CentiMeter",
-            Measure.Particulate1_0NumberConcentration => $"{_value}/Cubic CentiMeter",
-            Measure.Particulate2_5NumberConcentration => $"{_value}/Cubic CentiMeter",
-            Measure.Particulate4_0NumberConcentration => $"{_value}/Cubic CentiMeter",
-            Measure.Particulate10_0NumberConcentration => $"{_value}/Cubic CentiMeter",
+            Measure.Particulate0_5NumberConcentration => NumberConcentration.ToString(),
+            Measure.Particulate1_0NumberConcentration => NumberConcentration.ToString(),
+            Measure.Particulate2_5NumberConcentration => NumberConcentration.ToString(),
+            Measure.Particulate4_0NumberConcentration => NumberConcentration.ToString(),
+            Measure.Particulate10_0NumberConcentration => NumberConcentration.ToString(),
+            Measure.ParticulateTypicalSize => Length.ToString(),
             _ => $"{{ Empty {nameof(Measurement)} }}"
         };
     }
