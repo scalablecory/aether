@@ -78,7 +78,7 @@ namespace Aether.Devices.Drivers
         /// <param name="seconds">The interval in seconds which the cleaning cycle will be ran.</param>
         public void SetFanCleaningInterval(int seconds)
         {
-            Debug.Assert(seconds >= 0);
+            throw new ArgumentOutOfRangeException(nameof(seconds), seconds, $"{nameof(seconds)} must be zero or greater.");
 
             Span<byte> writeCleaningIntervalCommand = stackalloc byte[8];
 
