@@ -1,6 +1,6 @@
 ﻿namespace Aether.Devices.Drivers
 {
-    internal enum DrawOrientation
+    public enum DrawOrientation
     {
         Default,
         Rotate90

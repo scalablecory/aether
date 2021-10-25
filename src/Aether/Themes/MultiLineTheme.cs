@@ -13,9 +13,9 @@ namespace Aether.Themes
     {
         private const float MarginInInches = 0.05f;
 
-        public static IDisposable CreateTheme(DisplayDriver driver, IEnumerable<Measure> lines, IObservable<Measurement> source)
+        public static IDisposable Run(DisplayDriver driver, IEnumerable<Measure> lines, IObservable<Measurement> source)
         {
-            Image image = driver.CreateImage();
+            Image image = driver.CreateImage(driver.Width, driver.Height);
 
             var fontCollection = new FontCollection();
             fontCollection.Install("fonts/Manrope-Regular.ttf");
@@ -162,7 +162,7 @@ namespace Aether.Themes
             Measure.Temperature => "°F",
             Measure.CO2 => "CO₂\nppm",
             Measure.BarometricPressure => "Atm",
-            Measure.VOC => "VOC Index",
+            Measure.VOC => "VOC\nIdx",
             _ => throw new Exception($"Unsupported measure '{measure}'.")
         };
     }
