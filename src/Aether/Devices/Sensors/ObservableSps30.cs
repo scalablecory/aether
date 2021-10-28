@@ -31,16 +31,9 @@ namespace Aether.Devices.Sensors
 
         public static IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
-            new MeasureInfo(Measure.Particulate1_0PMassConcentration),
-            new MeasureInfo(Measure.Particulate2_5PMassConcentration),
-            new MeasureInfo(Measure.Particulate4_0PMassConcentration),
-            new MeasureInfo(Measure.Particulate10_0PMassConcentration),
-            new MeasureInfo(Measure.Particulate0_5NumberConcentration),
-            new MeasureInfo(Measure.Particulate1_0NumberConcentration),
-            new MeasureInfo(Measure.Particulate2_5NumberConcentration),
-            new MeasureInfo(Measure.Particulate4_0NumberConcentration),
-            new MeasureInfo(Measure.Particulate10_0NumberConcentration),
-            new MeasureInfo(Measure.ParticulateTypicalSize)
+            new MeasureInfo(Measure.MassConcentration),
+            new MeasureInfo(Measure.NumberConcentration),
+            new MeasureInfo(Measure.Length)
         };
 
         public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
@@ -65,22 +58,37 @@ namespace Aether.Devices.Sensors
 
                     if(sensorDataReady is not null && sensorDataReady.Value)
                     {
-                        Sps30ParticulateData? particulateData = _sensor.ReadMeasuredValues();
+                        Sps30ParticulateData particulateData = _sensor.ReadMeasuredValues();
 
-                        if (particulateData is not null)
-                        {
-                            OnNextParticulate1_0PMassConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulate2_5PMassConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulate4_0PMassConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulate10_0PMassConcentrationMeasurement(particulateData.Value);
+                        if (particulateData.PM1_0 is not null)
+                            OnNextMassConcentration(particulateData.PM1_0.Value);
 
-                            OnNextParticulate0_5PNumberConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulate1_0PNumberConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulate2_5PNumberConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulate4_0PNumberConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulate10_0PNumberConcentrationMeasurement(particulateData.Value);
-                            OnNextParticulateTypicalSize(particulateData.Value);
-                        }
+                        if (particulateData.PM2_5 is not null)
+                            OnNextMassConcentration(particulateData.PM2_5.Value);
+
+                        if (particulateData.PM4_0 is not null)
+                            OnNextMassConcentration(particulateData.PM4_0.Value);
+
+                        if (particulateData.PM10_0 is not null)
+                            OnNextMassConcentration(particulateData.PM10_0.Value);
+
+                        if (particulateData.P0_5 is not null)
+                            OnNextNumberConcentration(particulateData.P0_5.Value);
+
+                        if (particulateData.P1_0 is not null)
+                            OnNextNumberConcentration(particulateData.P1_0.Value);
+
+                        if (particulateData.P2_5 is not null)
+                            OnNextNumberConcentration(particulateData.P2_5.Value);
+
+                        if (particulateData.P4_0 is not null)
+                            OnNextNumberConcentration(particulateData.P4_0.Value);
+
+                        if (particulateData.P10_0 is not null)
+                            OnNextNumberConcentration(particulateData.P10_0.Value);
+
+                        if (particulateData.TypicalParticleSize is not null)
+                            OnNextLength(particulateData.TypicalParticleSize.Value);
                     }
                     
                 }

@@ -32,53 +32,18 @@ namespace Aether.Devices.Sensors
         BarometricPressure,
 
         /// <summary>
-        /// Corresponds to a <see cref="MassConcentration"/> of particulate 0.3 - 1 micrometers.
+        /// Corresponds to a <see cref="MassConcentration"/>.
         /// </summary>
-        Particulate1_0PMassConcentration,
+        MassConcentration,
 
         /// <summary>
-        /// Corresponds to a <see cref="MassConcentration"/> of particulate 0.3 - 2.5 micrometers.
+        /// Corresponds to a <see cref="NumberConcentration"/>.
         /// </summary>
-        Particulate2_5PMassConcentration,
+        NumberConcentration,
 
         /// <summary>
-        /// Corresponds to a <see cref="MassConcentration"/> of particulate 0.3 - 4 micrometers.
+        /// Corresponds to a <see cref="Length"/>.
         /// </summary>
-        Particulate4_0PMassConcentration,
-
-        /// <summary>
-        /// Corresponds to a <see cref="MassConcentration"/> of particulate 0.3 - 10 micrometers.
-        /// </summary>
-        Particulate10_0PMassConcentration,
-
-        /// <summary>
-        /// Corresponds to a count of particulate 0.3 - 0.5 micrometers.
-        /// </summary>
-        Particulate0_5NumberConcentration,
-
-        /// <summary>
-        /// Corresponds to a count of particulate 0.3 - 1.0 micrometers.
-        /// </summary>
-        Particulate1_0NumberConcentration,
-
-        /// <summary>
-        /// Corresponds to a count of particulate 0.3 - 2.5 micrometers.
-        /// </summary>
-        Particulate2_5NumberConcentration,
-
-        /// <summary>
-        /// Corresponds to a count of particulate 0.3 - 4.0 micrometers.
-        /// </summary>
-        Particulate4_0NumberConcentration,
-
-        /// <summary>
-        /// Corresponds to a count of particulate 0.3 - 10.0 micrometers.
-        /// </summary>
-        Particulate10_0NumberConcentration,
-
-        /// <summary>
-        /// Corresponds to an average <see cref="Length"/> of particles.
-        /// </summary>
-        ParticulateTypicalSize
+        Length
     }
 }

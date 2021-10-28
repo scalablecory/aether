@@ -76,7 +76,10 @@ namespace Aether.Devices.Drivers
         /// <param name="seconds">The interval in seconds which the cleaning cycle will be ran.</param>
         public void SetFanCleaningInterval(int seconds)
         {
-            Debug.Assert(seconds >= 0);
+            if(seconds < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(seconds), seconds, $"{nameof(seconds)} must be zero or greater.");
+            }
 
             Span<byte> writeCleaningIntervalCommand = stackalloc byte[8];
 
@@ -102,7 +105,6 @@ namespace Aether.Devices.Drivers
         /// <returns>The current fan cleaning interval if the device has been reset after setting the interval.</returns>
         public int? GetFanCleaningInterval()
         {
-
             ReadOnlySpan<byte> readCleaningIntervalCommand = new byte[] { 0x80, 0x04 };
             Span<byte> receivedCleaningInterval = stackalloc byte[6];
 
@@ -122,7 +124,7 @@ namespace Aether.Devices.Drivers
                 (byte)(lsb.Value >> 8)
             };
 
-            return BitConverter.ToInt32(intervalBytes);
+            return msb.Value << 16 | lsb.Value;
         }
 
         /// <summary>
@@ -137,7 +139,7 @@ namespace Aether.Devices.Drivers
             // Write get device information command and read information
             _device.WriteRead(getDeviceInformationCommand, deviceInformationWithCRC);
 
-            byte[] deviceInformationBytes = new byte[32];
+            Span<byte> deviceInformationBytes = stackalloc byte[32];
 
             for (int infoCrcIndex = 0, devInfoIndex = 0; infoCrcIndex + 3 < deviceInformationWithCRC.Length; infoCrcIndex+=3)
             {
@@ -170,18 +172,13 @@ namespace Aether.Devices.Drivers
         /// Gets the devices article code.
         /// </summary>
         /// <returns>The article code as an ASCII string. If CRC failed, <see langword="null"/>.</returns>
-        public string? GetArticleCode()
-        {
-            ReadOnlySpan<byte> getArticleCodeCommand = new byte[] { 0xD0, 0x25 };
-
-            return GetDeviceInformation(getArticleCodeCommand);
-        }
+        public string? GetArticleCode() => GetDeviceInformation(new byte[] { 0xD0, 0x25 });
 
         /// <summary>
         /// Reads sensor measurement values.
         /// </summary>
         /// <returns>The measurement data. If a CRC error occurred, <see langword="null"/>.</returns>
-        public Sps30ParticulateData? ReadMeasuredValues()
+        public Sps30ParticulateData ReadMeasuredValues()
         {
             ReadOnlySpan<byte> readMeasuredValuesCommand = new byte[] { 0x03, 0x00 };
 
@@ -193,70 +190,39 @@ namespace Aether.Devices.Drivers
             // Parse values and populate particulate data
             // Values are IEEE754 float values 4 bytes each
 
-            float? mPM1_0, mPM2_5, mPM4_0, mPM10_0, mP0_5, mP1_0, mP2_5, mP4_0, mP10_0, mTypicalParticleSize;
-            MassConcentration? PM1_0 = null, PM2_5 = null, PM4_0 = null, PM10_0 = null;
+            MassConcentration? PM1_0, PM2_5, PM4_0, PM10_0 ;
             NumberConcentration? P0_5 = null, P1_0 = null, P2_5 = null, P4_0 = null, P10_0 = null;
             Length? typicalParticalSize = null;
 
             // Parse Mass Concentration PM1.0
-            mPM1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(0, 6));
-
-            if (mPM1_0 is not null)
-                PM1_0 = new MassConcentration(mPM1_0.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter);
+            PM1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(0, 6)) is float mPM1_0 ? new MassConcentration(mPM1_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Mass Concentration PM2.5
-            mPM2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(6, 6));
-
-            if (mPM2_5 is not null)
-                PM2_5 = new MassConcentration(mPM2_5.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter);
+            PM2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(6, 6)) is float mPM2_5 ? new MassConcentration(mPM2_5, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Mass Concentration PM4.0
-            mPM4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(12, 6));
-
-            if (mPM4_0 is not null)
-                PM4_0 = new MassConcentration(mPM4_0.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter);
+            PM4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(12, 6)) is float mPM4_0 ? new MassConcentration(mPM4_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Mass Concentration PM10
-            mPM10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(18, 6));
-
-            if (mPM10_0 is not null)
-                PM10_0 = new MassConcentration(mPM10_0.Value, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter);
+            PM10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(18, 6)) is float mPM10_0 ? new MassConcentration(mPM10_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Number Concentration PM0_5
-            mP0_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(24, 6));
-
-            if (mP0_5 is not null)
-                P0_5 = new NumberConcentration(mP0_5.Value);
+            P0_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(24, 6)) is float mP0_5 ? new NumberConcentration(mP0_5) : null;
 
             // Parse Number Concentration PM1_0
-            mP1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(30, 6));
-
-            if (mP1_0 is not null)
-                P1_0 = new NumberConcentration(mP1_0.Value);
+            P1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(30, 6)) is float mP1_0 ? new NumberConcentration(mP1_0) : null;
 
             // Parse Number Concentration PM2_5
-            mP2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(36, 6));
-
-            if (mP2_5 is not null)
-                P2_5 = new NumberConcentration(mP2_5.Value);
+            P2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(36, 6)) is float mP2_5 ? new NumberConcentration(mP2_5) : null;
 
             // Parse Number Concentration PM4_0
-            mP4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(42, 6));
-
-            if (mP4_0 is not null)
-                P4_0 = new NumberConcentration(mP4_0.Value);
+            P4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(42, 6)) is float mP4_0 ? new NumberConcentration(mP4_0) : null;
 
             // Parse Number Concentration PM10
-            mP10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(48, 6));
-
-            if (mP10_0 is not null)
-                P10_0 = new NumberConcentration(mP10_0.Value);
+            P10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(48, 6)) is float mP10_0 ? new NumberConcentration(mP10_0) : null;
 
             // Parse Typical Particle Size (Length as micrometer)
-            mTypicalParticleSize = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(54, 6));
-
-            if (mTypicalParticleSize is not null)
-                typicalParticalSize = new Length(mTypicalParticleSize.Value, UnitsNet.Units.LengthUnit.Micrometer);
+            typicalParticalSize = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(54, 6)) is float mTypicalParticleSize ? new Length(mTypicalParticleSize, UnitsNet.Units.LengthUnit.Micrometer) : null;
 
             return new Sps30ParticulateData(
                 PM1_0,
@@ -308,12 +274,9 @@ namespace Aether.Devices.Drivers
         /// </summary>
         public void StartMeasurement()
         {
-            Span<byte> bytes = stackalloc byte[3];
-            Sensirion.WriteUInt16BigEndianAndCRC8(bytes, 0x0300);
-
             // Start measurement command 0x00, 0x01
-            // Measurement mode 0x03 with dummy byte 0x00
-            ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, bytes[0], bytes[1], bytes[2] };
+            // Measurement mode 0x03 with dummy byte 0x00 and CRC
+            ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, 0x03, 0x00, 0xAC };
 
             // Write start measurement
             _device.Write(startMeasurementCommand);

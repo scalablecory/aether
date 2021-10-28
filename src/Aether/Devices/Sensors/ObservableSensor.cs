@@ -105,65 +105,13 @@ namespace Aether.Devices.Sensors
         protected void OnNextVolitileOrganicCompound(VolatileOrganicCompoundIndex vocIndex) =>
             _measurements.OnNext(Measurement.FromVoc(vocIndex));
 
-        protected void OnNextParticulate1_0PMassConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.PM1_0 is not null)
-                _measurements.OnNext(Measurement.From1_0PMassConcentration(particulateData.PM1_0.Value));
-        }
+        protected void OnNextMassConcentration(MassConcentration massConcentration) =>
+            _measurements.OnNext(Measurement.FromMassConcentration(massConcentration));
 
+        protected void OnNextNumberConcentration(NumberConcentration numberConcentration) =>
+            _measurements.OnNext(Measurement.FromNumberConcentration(numberConcentration));
 
-        protected void OnNextParticulate2_5PMassConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.PM2_5 is not null)
-                _measurements.OnNext(Measurement.From2_5PMassConcentration(particulateData.PM2_5.Value));
-        }
-
-        protected void OnNextParticulate4_0PMassConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.PM4_0 is not null)
-                _measurements.OnNext(Measurement.From4_0PMassConcentration(particulateData.PM4_0.Value));
-        }
-
-        protected void OnNextParticulate10_0PMassConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.PM10_0 is not null)
-                _measurements.OnNext(Measurement.From10_0PMassConcentration(particulateData.PM10_0.Value));
-        }
-
-        protected void OnNextParticulate0_5PNumberConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if(particulateData.P0_5 is not null)
-                _measurements.OnNext(Measurement.From0_5NumberConcentration(particulateData.P0_5.Value));
-        }
-
-        protected void OnNextParticulate1_0PNumberConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.P1_0 is not null)
-                _measurements.OnNext(Measurement.From1_0NumberConcentration(particulateData.P1_0.Value));
-        }
-
-        protected void OnNextParticulate2_5PNumberConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.P2_5 is not null)
-                _measurements.OnNext(Measurement.From2_5NumberConcentration(particulateData.P2_5.Value));
-        }
-
-        protected void OnNextParticulate4_0PNumberConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.P4_0 is not null)
-                _measurements.OnNext(Measurement.From4_0NumberConcentration(particulateData.P4_0.Value));
-        }
-
-        protected void OnNextParticulate10_0PNumberConcentrationMeasurement(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.P10_0 is not null)
-                _measurements.OnNext(Measurement.From10_0NumberConcentration(particulateData.P10_0.Value));
-        }
-
-        protected void OnNextParticulateTypicalSize(Sps30ParticulateData particulateData)
-        {
-            if (particulateData.TypicalParticleSize is not null)
-                _measurements.OnNext(Measurement.FromParticulateTypicalSize(particulateData.TypicalParticleSize.Value));
-        }
+        protected void OnNextLength(Length length) =>
+            _measurements.OnNext(Measurement.FromLength(length));
     }
 }

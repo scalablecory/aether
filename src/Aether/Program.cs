@@ -136,6 +136,9 @@ var particleTestCommand = new Command("test-sps30", "Tests the air particulate s
 particleTestCommand.Handler = CommandHandler.Create(async () =>
 {
     Console.WriteLine("Starting particulate sensor read");
+    byte[] test = new byte[3];
+
+    Sensirion.WriteUInt16BigEndianAndCRC8(test, 0x0300);
     Console.ReadKey();
     I2cDevice sps30Device = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSps30.DefaultAddress));
     await using ObservableSensor spsDriver = ObservableSps30.OpenSensor(sps30Device, dependencies: Observable.Empty<Measurement>());

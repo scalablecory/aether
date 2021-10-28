@@ -61,35 +61,14 @@ namespace Aether.Devices.Sensors
         public static Measurement FromVoc(VolatileOrganicCompoundIndex vocIndex) =>
             new Measurement(vocIndex.Value, (int)vocIndex.Unit, Measure.VOC);
 
-        public static Measurement From1_0PMassConcentration(MassConcentration massConcentration) =>
-            new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate1_0PMassConcentration);
+        public static Measurement FromMassConcentration(MassConcentration massConcentration) =>
+            new Measurement(massConcentration.Value, (int)massConcentration.Unit, Measure.MassConcentration);
 
-        public static Measurement From2_5PMassConcentration(MassConcentration massConcentration) =>
-            new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate2_5PMassConcentration);
+        public static Measurement FromNumberConcentration(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.NumberConcentration);
 
-        public static Measurement From4_0PMassConcentration(MassConcentration massConcentration) =>
-            new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate4_0PMassConcentration);
-
-        public static Measurement From10_0PMassConcentration(MassConcentration massConcentration) =>
-             new Measurement(massConcentration.MicrogramsPerCubicMeter, (int)massConcentration.Unit, Measure.Particulate10_0PMassConcentration);
-
-        public static Measurement From0_5NumberConcentration(NumberConcentration numberConcentration) =>
-            new Measurement(numberConcentration.Value, 0, Measure.Particulate0_5NumberConcentration);
-
-        public static Measurement From1_0NumberConcentration(NumberConcentration numberConcentration) =>
-            new Measurement(numberConcentration.Value, 0, Measure.Particulate1_0NumberConcentration);
-
-        public static Measurement From2_5NumberConcentration(NumberConcentration numberConcentration) =>
-            new Measurement(numberConcentration.Value, 0, Measure.Particulate2_5NumberConcentration);
-
-        public static Measurement From4_0NumberConcentration(NumberConcentration numberConcentration) =>
-            new Measurement(numberConcentration.Value, 0, Measure.Particulate4_0NumberConcentration);
-
-        public static Measurement From10_0NumberConcentration(NumberConcentration numberConcentration) =>
-            new Measurement(numberConcentration.Value, 0, Measure.Particulate10_0NumberConcentration);
-
-        public static Measurement FromParticulateTypicalSize(Length length) =>
-            new Measurement(length.Value, (int)length.Unit, Measure.ParticulateTypicalSize);
+        public static Measurement FromLength(Length length) =>
+            new Measurement(length.Value, (int)length.Unit, Measure.Length);
 
         public override string ToString() => Measure switch
         {
@@ -98,16 +77,9 @@ namespace Aether.Devices.Sensors
             Measure.CO2 => Co2.ToString(),
             Measure.BarometricPressure => BarometricPressure.ToString(),
             Measure.VOC => Voc.ToString(),
-            Measure.Particulate1_0PMassConcentration => MassConcentration.ToString(),
-            Measure.Particulate2_5PMassConcentration => MassConcentration.ToString(),
-            Measure.Particulate4_0PMassConcentration => MassConcentration.ToString(),
-            Measure.Particulate10_0PMassConcentration => MassConcentration.ToString(),
-            Measure.Particulate0_5NumberConcentration => NumberConcentration.ToString(),
-            Measure.Particulate1_0NumberConcentration => NumberConcentration.ToString(),
-            Measure.Particulate2_5NumberConcentration => NumberConcentration.ToString(),
-            Measure.Particulate4_0NumberConcentration => NumberConcentration.ToString(),
-            Measure.Particulate10_0NumberConcentration => NumberConcentration.ToString(),
-            Measure.ParticulateTypicalSize => Length.ToString(),
+            Measure.MassConcentration => MassConcentration.ToString(),
+            Measure.NumberConcentration => NumberConcentration.ToString(),
+            Measure.Length => Length.ToString(),
             _ => $"{{ Empty {nameof(Measurement)} }}"
         };
     }
