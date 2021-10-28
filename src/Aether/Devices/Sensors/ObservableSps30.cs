@@ -31,9 +31,16 @@ namespace Aether.Devices.Sensors
 
         public static IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
-            new MeasureInfo(Measure.MassConcentration),
-            new MeasureInfo(Measure.NumberConcentration),
-            new MeasureInfo(Measure.Length)
+            new MeasureInfo(Measure.PM1_0),
+            new MeasureInfo(Measure.PM2_5),
+            new MeasureInfo(Measure.PM4_0),
+            new MeasureInfo(Measure.PM10_0),
+            new MeasureInfo(Measure.P0_5),
+            new MeasureInfo(Measure.P1_0),
+            new MeasureInfo(Measure.P2_5),
+            new MeasureInfo(Measure.P4_0),
+            new MeasureInfo(Measure.P10_0),
+            new MeasureInfo(Measure.TypicalParticleSize)
         };
 
         public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
@@ -61,34 +68,34 @@ namespace Aether.Devices.Sensors
                         Sps30ParticulateData particulateData = _sensor.ReadMeasuredValues();
 
                         if (particulateData.PM1_0 is not null)
-                            OnNextMassConcentration(particulateData.PM1_0.Value);
+                            OnNextPM1_0(particulateData.PM1_0.Value);
 
                         if (particulateData.PM2_5 is not null)
-                            OnNextMassConcentration(particulateData.PM2_5.Value);
+                            OnNextPM2_5(particulateData.PM2_5.Value);
 
                         if (particulateData.PM4_0 is not null)
-                            OnNextMassConcentration(particulateData.PM4_0.Value);
+                            OnNextPM4_0(particulateData.PM4_0.Value);
 
                         if (particulateData.PM10_0 is not null)
-                            OnNextMassConcentration(particulateData.PM10_0.Value);
+                            OnNextPM10_0(particulateData.PM10_0.Value);
 
                         if (particulateData.P0_5 is not null)
-                            OnNextNumberConcentration(particulateData.P0_5.Value);
+                            OnNextP0_5(particulateData.P0_5.Value);
 
                         if (particulateData.P1_0 is not null)
-                            OnNextNumberConcentration(particulateData.P1_0.Value);
+                            OnNextP1_0(particulateData.P1_0.Value);
 
                         if (particulateData.P2_5 is not null)
-                            OnNextNumberConcentration(particulateData.P2_5.Value);
+                            OnNextP2_5(particulateData.P2_5.Value);
 
                         if (particulateData.P4_0 is not null)
-                            OnNextNumberConcentration(particulateData.P4_0.Value);
+                            OnNextP4_0(particulateData.P4_0.Value);
 
                         if (particulateData.P10_0 is not null)
-                            OnNextNumberConcentration(particulateData.P10_0.Value);
+                            OnNextP10_0(particulateData.P10_0.Value);
 
                         if (particulateData.TypicalParticleSize is not null)
-                            OnNextLength(particulateData.TypicalParticleSize.Value);
+                            OnNextTypicalParticleSize(particulateData.TypicalParticleSize.Value);
                     }
                     
                 }

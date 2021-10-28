@@ -105,13 +105,34 @@ namespace Aether.Devices.Sensors
         protected void OnNextVolitileOrganicCompound(VolatileOrganicCompoundIndex vocIndex) =>
             _measurements.OnNext(Measurement.FromVoc(vocIndex));
 
-        protected void OnNextMassConcentration(MassConcentration massConcentration) =>
-            _measurements.OnNext(Measurement.FromMassConcentration(massConcentration));
+        protected void OnNextPM1_0(MassConcentration massConcentration) =>
+             _measurements.OnNext(Measurement.FromPM1_0(massConcentration));
 
-        protected void OnNextNumberConcentration(NumberConcentration numberConcentration) =>
-            _measurements.OnNext(Measurement.FromNumberConcentration(numberConcentration));
+        protected void OnNextPM2_5(MassConcentration massConcentration) =>
+            _measurements.OnNext(Measurement.FromPM2_5(massConcentration));
 
-        protected void OnNextLength(Length length) =>
-            _measurements.OnNext(Measurement.FromLength(length));
+        protected void OnNextPM4_0(MassConcentration massConcentration) =>
+            _measurements.OnNext(Measurement.FromPM4_0(massConcentration));
+
+        protected void OnNextPM10_0(MassConcentration massConcentration) =>
+            _measurements.OnNext(Measurement.FromPM10_0(massConcentration));
+
+        protected void OnNextP0_5(NumberConcentration numberConcentration) =>
+            _measurements.OnNext(Measurement.FromP0_5(numberConcentration));
+
+        protected void OnNextP1_0(NumberConcentration numberConcentration) =>
+            _measurements.OnNext(Measurement.FromP1_0(numberConcentration));
+
+        protected void OnNextP2_5(NumberConcentration numberConcentration) =>
+            _measurements.OnNext(Measurement.FromP2_5(numberConcentration));
+
+        protected void OnNextP4_0(NumberConcentration numberConcentration) =>
+            _measurements.OnNext(Measurement.FromP4_0(numberConcentration));
+
+        protected void OnNextP10_0(NumberConcentration numberConcentration) =>
+            _measurements.OnNext(Measurement.FromP10_0(numberConcentration));
+
+        protected void OnNextTypicalParticleSize(Length length) =>
+            _measurements.OnNext(Measurement.FromTypicalParticleSize(length));
     }
 }
