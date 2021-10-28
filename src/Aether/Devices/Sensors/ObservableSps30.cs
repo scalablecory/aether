@@ -104,8 +104,6 @@ namespace Aether.Devices.Sensors
             {
                 _sensor.StopMeasurement();
             }
-
-            
         }
     }
 }

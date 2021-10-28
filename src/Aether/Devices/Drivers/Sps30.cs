@@ -108,8 +108,10 @@ namespace Aether.Devices.Drivers
             ReadOnlySpan<byte> readCleaningIntervalCommand = new byte[] { 0x80, 0x04 };
             Span<byte> receivedCleaningInterval = stackalloc byte[6];
 
-            // Write Read Cleaning Interval Command and read cleaning interval
-            _device.WriteRead(readCleaningIntervalCommand, receivedCleaningInterval);
+            // Write Read Cleaning Interval Command
+            _device.Write(readCleaningIntervalCommand);
+
+            _device.Read(receivedCleaningInterval);
 
             ushort? msb = Sensirion.ReadUInt16BigEndianAndCRC8(receivedCleaningInterval.Slice(0, 3));
             ushort? lsb = Sensirion.ReadUInt16BigEndianAndCRC8(receivedCleaningInterval.Slice(3, 3));
@@ -137,7 +139,9 @@ namespace Aether.Devices.Drivers
             Span<byte> deviceInformationWithCRC = stackalloc byte[48];
 
             // Write get device information command and read information
-            _device.WriteRead(getDeviceInformationCommand, deviceInformationWithCRC);
+            _device.Write(getDeviceInformationCommand);
+
+            _device.Read(deviceInformationWithCRC);
 
             Span<byte> deviceInformationBytes = stackalloc byte[32];
 
@@ -150,8 +154,8 @@ namespace Aether.Devices.Drivers
                     return null;
                 }
 
-                deviceInformationBytes[devInfoIndex++] = (byte)stringChars;
                 deviceInformationBytes[devInfoIndex++] = (byte)(stringChars >> 8);
+                deviceInformationBytes[devInfoIndex++] = (byte)stringChars;
             }
 
             return Encoding.ASCII.GetString(deviceInformationBytes);
@@ -185,44 +189,42 @@ namespace Aether.Devices.Drivers
             Span<byte> measuredValuesWithCRC = stackalloc byte[60];
 
             // Write read measured values command, then read measured values with CRC data
-            _device.WriteRead(readMeasuredValuesCommand, measuredValuesWithCRC);
+            _device.Write(readMeasuredValuesCommand);
+
+            _device.Read(measuredValuesWithCRC);
 
             // Parse values and populate particulate data
             // Values are IEEE754 float values 4 bytes each
 
-            MassConcentration? PM1_0, PM2_5, PM4_0, PM10_0 ;
-            NumberConcentration? P0_5 = null, P1_0 = null, P2_5 = null, P4_0 = null, P10_0 = null;
-            Length? typicalParticalSize = null;
-
             // Parse Mass Concentration PM1.0
-            PM1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(0, 6)) is float mPM1_0 ? new MassConcentration(mPM1_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
+            MassConcentration? PM1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(0, 6)) is float mPM1_0 ? new MassConcentration(mPM1_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Mass Concentration PM2.5
-            PM2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(6, 6)) is float mPM2_5 ? new MassConcentration(mPM2_5, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
+            MassConcentration? PM2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(6, 6)) is float mPM2_5 ? new MassConcentration(mPM2_5, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Mass Concentration PM4.0
-            PM4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(12, 6)) is float mPM4_0 ? new MassConcentration(mPM4_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
+            MassConcentration? PM4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(12, 6)) is float mPM4_0 ? new MassConcentration(mPM4_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Mass Concentration PM10
-            PM10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(18, 6)) is float mPM10_0 ? new MassConcentration(mPM10_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
+            MassConcentration? PM10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(18, 6)) is float mPM10_0 ? new MassConcentration(mPM10_0, UnitsNet.Units.MassConcentrationUnit.MicrogramPerCubicMeter) : null;
 
             // Parse Number Concentration PM0_5
-            P0_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(24, 6)) is float mP0_5 ? new NumberConcentration(mP0_5) : null;
+            NumberConcentration? P0_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(24, 6)) is float mP0_5 ? new NumberConcentration(mP0_5) : null;
 
             // Parse Number Concentration PM1_0
-            P1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(30, 6)) is float mP1_0 ? new NumberConcentration(mP1_0) : null;
+            NumberConcentration? P1_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(30, 6)) is float mP1_0 ? new NumberConcentration(mP1_0) : null;
 
             // Parse Number Concentration PM2_5
-            P2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(36, 6)) is float mP2_5 ? new NumberConcentration(mP2_5) : null;
+            NumberConcentration? P2_5 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(36, 6)) is float mP2_5 ? new NumberConcentration(mP2_5) : null;
 
             // Parse Number Concentration PM4_0
-            P4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(42, 6)) is float mP4_0 ? new NumberConcentration(mP4_0) : null;
+            NumberConcentration? P4_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(42, 6)) is float mP4_0 ? new NumberConcentration(mP4_0) : null;
 
             // Parse Number Concentration PM10
-            P10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(48, 6)) is float mP10_0 ? new NumberConcentration(mP10_0) : null;
+            NumberConcentration? P10_0 = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(48, 6)) is float mP10_0 ? new NumberConcentration(mP10_0) : null;
 
             // Parse Typical Particle Size (Length as micrometer)
-            typicalParticalSize = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(54, 6)) is float mTypicalParticleSize ? new Length(mTypicalParticleSize, UnitsNet.Units.LengthUnit.Micrometer) : null;
+            Length? typicalParticalSize = ProcessMeasurementBytes(measuredValuesWithCRC.Slice(54, 6)) is float mTypicalParticleSize ? new Length(mTypicalParticleSize, UnitsNet.Units.LengthUnit.Micrometer) : null;
 
             return new Sps30ParticulateData(
                 PM1_0,
@@ -266,7 +268,7 @@ namespace Aether.Devices.Drivers
                 (byte)(upperBytes >> 8),
             };
 
-            return BitConverter.ToSingle(measurementBytes);
+            return BitConverter.Int32BitsToSingle(upperBytes.Value << 16 | lowerBytes.Value);
         }
 
         /// <summary>
@@ -276,7 +278,14 @@ namespace Aether.Devices.Drivers
         {
             // Start measurement command 0x00, 0x01
             // Measurement mode 0x03 with dummy byte 0x00 and CRC
-            ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, 0x03, 0x00, 0xAC };
+            Span<byte> bytes = stackalloc byte[3];
+            Sensirion.WriteUInt16BigEndianAndCRC8(bytes, 0x0300);
+
+            // Start measurement command 0x00, 0x01
+            // Measurement mode 0x03 with dummy byte 0x00
+            ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, bytes[0], bytes[1], bytes[2] };
+
+            //ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, 0x03, 0x00, 0xAC };
 
             // Write start measurement
             _device.Write(startMeasurementCommand);
@@ -306,13 +315,13 @@ namespace Aether.Devices.Drivers
             ReadOnlySpan<byte> readDataReadyCommand = new byte[] { 0x02, 0x02 };
             Span<byte> dataReadyResult = stackalloc byte[3];
 
-            // Write check sensor data ready command and read
-            _device.WriteRead(readDataReadyCommand, dataReadyResult);
+            // Write check sensor data ready command
+            _device.Write(readDataReadyCommand);
 
-            ushort? resultData = Sensirion.ReadUInt16BigEndianAndCRC8(dataReadyResult);
+            // Read data ready result
+            _device.Read(dataReadyResult);
 
-            // Hi byte is always 0x00 so ignore. Low byte will be 0x01 for ready, 0x00 for not ready.
-            return resultData == 1;
+            return Sensirion.ReadUInt16BigEndianAndCRC8(dataReadyResult) == 1;
         }
     }
 }
