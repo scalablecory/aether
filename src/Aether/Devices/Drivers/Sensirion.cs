@@ -39,6 +39,26 @@ namespace Aether.Devices.Drivers
             bytes[2] = CRC8(hi, lo);
         }
 
+        public static uint? ReadUInt32BigEndianAndCRC8(ReadOnlySpan<byte> bytes)
+        {
+            Debug.Assert(bytes.Length >= 6, $"{nameof(bytes)} must contain at least 6 bytes.");
+
+            ushort? msw = ReadUInt16BigEndianAndCRC8(bytes.Slice(0, 3));
+            ushort? lsw = ReadUInt16BigEndianAndCRC8(bytes.Slice(3, 3));
+
+            return (uint?)(msw << 16 | lsw);
+        }
+
+        public static void WriteUInt32BigEndianAndCRC8(Span<byte> bytes, uint value)
+        {
+            Debug.Assert(bytes.Length >= 6, $"{nameof(bytes)} must contain at least 6 bytes.");
+            ushort msw = (ushort)(value >> 16);
+            ushort lsw = (ushort)value;
+
+            WriteUInt16BigEndianAndCRC8(bytes.Slice(0, 3), msw);
+            WriteUInt16BigEndianAndCRC8(bytes.Slice(3, 3), lsw);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static byte CRC8(byte byteA, byte byteB) =>
             CrcLookup[CrcLookup[0xFF ^ byteA] ^ byteB];

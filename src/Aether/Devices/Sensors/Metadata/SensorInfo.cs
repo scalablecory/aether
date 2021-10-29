@@ -16,7 +16,8 @@ namespace Aether.Devices.Sensors.Metadata
             new ConcreteI2CSensorInfo<ObservableScd4x>(),
             new ConcreteI2CSensorInfo<ObservableSht4x>(),
             new SimulatedI2cSensorInfo<ObservableMs5637>(),
-            new ConcreteI2CSensorInfo<ObservableSgp4x>()
+            new ConcreteI2CSensorInfo<ObservableSgp4x>(),
+            new ConcreteI2CSensorInfo<ObservableSps30>()
         };
 
         public abstract string Manufacturer { get; }

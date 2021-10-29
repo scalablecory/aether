@@ -1,4 +1,5 @@
 ﻿using Aether.CustomUnits;
+using Aether.Devices.Drivers;
 using System.Runtime.InteropServices;
 using UnitsNet;
 using UnitsNet.Units;
@@ -29,6 +30,15 @@ namespace Aether.Devices.Sensors
         public  VolatileOrganicCompoundIndex Voc =>
             new VolatileOrganicCompoundIndex(_value, (VolatileOrganicCompoundIndexUnit)_unit);
 
+        public MassConcentration MassConcentration =>
+            new MassConcentration(_value, (MassConcentrationUnit)_unit);
+
+        public NumberConcentration NumberConcentration =>
+            new NumberConcentration(_value, (NumberConcentrationUnit)_unit);
+
+        public Length Length =>
+            new Length(_value, (LengthUnit)_unit);
+
         private Measurement(double value, int unit, Measure measure)
         {
             _value = value;
@@ -49,7 +59,37 @@ namespace Aether.Devices.Sensors
             new Measurement(p.Value, (int)p.Unit, Measure.BarometricPressure);
 
         public static Measurement FromVoc(VolatileOrganicCompoundIndex vocIndex) =>
-            new Measurement(vocIndex.Value, 0, Measure.VOC);
+            new Measurement(vocIndex.Value, (int)vocIndex.Unit, Measure.VOC);
+
+        public static Measurement FromPM1_0(MassConcentration massConcentration) =>
+            new Measurement(massConcentration.Value, (int)massConcentration.Unit, Measure.PM1_0);
+
+        public static Measurement FromPM2_5(MassConcentration massConcentration) =>
+            new Measurement(massConcentration.Value, (int)massConcentration.Unit, Measure.PM2_5);
+
+        public static Measurement FromPM4_0(MassConcentration massConcentration) =>
+            new Measurement(massConcentration.Value, (int)massConcentration.Unit, Measure.PM4_0);
+
+        public static Measurement FromPM10_0(MassConcentration massConcentration) =>
+            new Measurement(massConcentration.Value, (int)massConcentration.Unit, Measure.PM10_0);
+
+        public static Measurement FromP0_5(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.P0_5);
+
+        public static Measurement FromP1_0(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.P1_0);
+
+        public static Measurement FromP2_5(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.P2_5);
+
+        public static Measurement FromP4_0(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.P4_0);
+
+        public static Measurement FromP10_0(NumberConcentration numberConcentration) =>
+            new Measurement(numberConcentration.Value, 0, Measure.P10_0);
+
+        public static Measurement FromTypicalParticleSize(Length length) =>
+            new Measurement(length.Value, (int)length.Unit, Measure.TypicalParticleSize);
 
         public override string ToString() => Measure switch
         {
@@ -58,6 +98,16 @@ namespace Aether.Devices.Sensors
             Measure.CO2 => Co2.ToString(),
             Measure.BarometricPressure => BarometricPressure.ToString(),
             Measure.VOC => Voc.ToString(),
+            Measure.PM1_0 => MassConcentration.ToString(),
+            Measure.PM2_5 => MassConcentration.ToString(),
+            Measure.PM4_0 => MassConcentration.ToString(),
+            Measure.PM10_0 => MassConcentration.ToString(),
+            Measure.P0_5 => NumberConcentration.ToString(),
+            Measure.P1_0 => NumberConcentration.ToString(),
+            Measure.P2_5 => NumberConcentration.ToString(),
+            Measure.P4_0 => NumberConcentration.ToString(),
+            Measure.P10_0 => NumberConcentration.ToString(),
+            Measure.TypicalParticleSize => Length.ToString(),
             _ => $"{{ Empty {nameof(Measurement)} }}"
         };
     }
