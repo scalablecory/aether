@@ -87,10 +87,7 @@ namespace Aether.Devices.Drivers
             writeCleaningIntervalCommand[0] = 0x80;
             writeCleaningIntervalCommand[1] = 0x04;
 
-            ReadOnlySpan<byte> interval = BitConverter.GetBytes(seconds);
-
-            Sensirion.WriteUInt16BigEndianAndCRC8(writeCleaningIntervalCommand.Slice(2, 3), (ushort)(seconds >> 16)); // High Bits
-            Sensirion.WriteUInt16BigEndianAndCRC8(writeCleaningIntervalCommand.Slice(5, 3), (ushort)seconds); // Low Bits
+            Sensirion.WriteUInt32BigEndianAndCRC8(writeCleaningIntervalCommand.Slice(2), (uint)seconds);
 
             // Write Set Cleaning Interval Command
             _device.Write(writeCleaningIntervalCommand);
