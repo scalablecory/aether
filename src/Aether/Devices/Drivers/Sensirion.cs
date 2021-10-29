@@ -46,7 +46,7 @@ namespace Aether.Devices.Drivers
             ushort? msw = ReadUInt16BigEndianAndCRC8(bytes.Slice(0, 3));
             ushort? lsw = ReadUInt16BigEndianAndCRC8(bytes.Slice(3, 3));
 
-            return (msw.HasValue && lsw.HasValue) ? (uint?)(msw << 16 | lsw) : null;
+            return (uint?)(msw << 16 | lsw);
         }
 
         public static void WriteUInt32BigEndianAndCRC8(Span<byte> bytes, uint value)
