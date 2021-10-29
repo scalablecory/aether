@@ -231,32 +231,8 @@ namespace Aether.Devices.Drivers
         /// </summary>
         /// <param name="measurementData">The measurement data bytes.</param>
         /// <returns>A float value of the measurement data. If a CRC error occurred, <see langword="null"/>.</returns>
-        private float? ProcessMeasurementBytes(ReadOnlySpan<byte> measurementData)
-        {
-            if(measurementData.Length != 6)
-            {
-                throw new ArgumentException(nameof(measurementData), "Measurement data must be exactly 6 bytes in size");
-            }
-
-            ushort? upperBytes = Sensirion.ReadUInt16BigEndianAndCRC8(measurementData.Slice(0, 3));
-            ushort? lowerBytes = Sensirion.ReadUInt16BigEndianAndCRC8(measurementData.Slice(3, 3));
-
-            if (upperBytes is null || lowerBytes is null)
-            {
-                return null;
-            }
-
-            // Data received is BigEndian, handle the byte filtering and reording here
-            ReadOnlySpan<byte> measurementBytes = stackalloc byte[4]
-            {
-                (byte)lowerBytes,
-                (byte)(lowerBytes >> 8),
-                (byte)upperBytes,
-                (byte)(upperBytes >> 8),
-            };
-
-            return BitConverter.Int32BitsToSingle(upperBytes.Value << 16 | lowerBytes.Value);
-        }
+        private float? ProcessMeasurementBytes(ReadOnlySpan<byte> measurementData) =>
+            Sensirion.ReadUInt32BigEndianAndCRC8(measurementData) is uint32 x ? BitConverter.Int32BitsToSingle((int)x) : null;
 
         /// <summary>
         /// Starts measurements on the device.
