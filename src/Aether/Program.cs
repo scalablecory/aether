@@ -114,36 +114,6 @@ simulateSensorCommand.Handler = CommandHandler.Create((string name) => RunAndPri
     return sensorInfo.CreateSimulatedSensor(Observable.Empty<Measurement>());
 }));
 
-var testVocCommand = new Command("test-voc", "Tests the VOC sensor while also providing data from SCD4x sensor");
-testVocCommand.Handler = CommandHandler.Create(async () =>
-{
-    // Initialize MS5637.
-    I2cDevice ms5637Device = I2cDevice.Create(new I2cConnectionSettings(1, ObservableMs5637.DefaultAddress));
-    await using ObservableSensor ms5637Driver = ObservableMs5637.OpenSensor(ms5637Device, dependencies: Observable.Empty<Measurement>());
-
-    // Initialize SCD4x, taking a dependency on MS5637 for calibration with barometric pressure.
-    I2cDevice scd4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableScd4x.DefaultAddress));
-    await using ObservableSensor scdDriver = ObservableScd4x.OpenSensor(scd4xDevice, dependencies: ms5637Driver);
-
-    // Initialize SGP4x, taking a dependency on SCD4x for temperature and relative humidity
-    I2cDevice sgp4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSgp4x.DefaultAddress));
-    await using ObservableSensor sgpDriver = ObservableSgp4x.OpenSensor(sgp4xDevice, dependencies: scdDriver);
-
-    await RunAndPrintSensorAsync(() => sgpDriver);
-});
-
-var particleTestCommand = new Command("test-sps30", "Tests the air particulate sensor SPS30");
-particleTestCommand.Handler = CommandHandler.Create(async () =>
-{
-    Console.WriteLine("Starting particulate sensor read");
-    byte[] test = new byte[3];
-
-    I2cDevice sps30Device = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSps30.DefaultAddress));
-    await using ObservableSensor spsDriver = ObservableSps30.OpenSensor(sps30Device, dependencies: Observable.Empty<Measurement>());
-
-    await RunAndPrintSensorAsync(() => spsDriver);
-});
-
 // Temporary command to test the theme.
 // TODO: Make this more like a list/test format similar to sensor.
 var themeTestCommand = new Command("theme-test", "Tests a theme.");
@@ -201,9 +171,7 @@ var rootCommand = new RootCommand()
         simulateSensorCommand
     },
     themeTestCommand,
-    displayTestCommand,
-    testVocCommand,
-    particleTestCommand
+    displayTestCommand
 };
 
 await rootCommand.InvokeAsync(Environment.CommandLine);
