@@ -113,20 +113,7 @@ namespace Aether.Devices.Drivers
 
             _device.Read(receivedCleaningInterval);
 
-            ushort? msb = Sensirion.ReadUInt16BigEndianAndCRC8(receivedCleaningInterval.Slice(0, 3));
-            ushort? lsb = Sensirion.ReadUInt16BigEndianAndCRC8(receivedCleaningInterval.Slice(3, 3));
-
-            if (msb == null || lsb == null)
-                return null;
-
-            ReadOnlySpan<byte> intervalBytes = stackalloc byte[] {
-                (byte)msb.Value,
-                (byte)(msb.Value >> 8),
-                (byte)lsb.Value,
-                (byte)(lsb.Value >> 8)
-            };
-
-            return msb.Value << 16 | lsb.Value;
+            return (int?)Sensirion.ReadUInt32BigEndianAndCRC8(receivedCleaningInterval);
         }
 
         /// <summary>
