@@ -129,6 +129,9 @@ themeTestCommand.Handler = CommandHandler.Create(() =>
     sub.OnNext(Measurement.FromRelativeHumidity(RelativeHumidity.FromPercent(59.1)));
     sub.OnNext(Measurement.FromPressure(Pressure.FromAtmospheres(1.04)));
     sub.OnNext(Measurement.FromTemperature(Temperature.FromDegreesFahrenheit(65.2)));
+    sub.OnNext(Measurement.FromVoc(new Aether.CustomUnits.VolatileOrganicCompoundIndex(103)));
+    sub.OnNext(Measurement.FromPM2_5(MassConcentration.FromMicrogramsPerCubicMeter(0.78)));
+    sub.OnNext(Measurement.FromPM10_0(MassConcentration.FromMicrogramsPerCubicMeter(1.27)));
     sub.OnCompleted();
 });
 
