@@ -45,6 +45,7 @@ Initial support will use specific hardware to support [Build A](builds/a.md). In
 - [Sensirion SPS30](https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/) - PM<sub>0.5</sub>, PM<sub>1.0</sub>, PM<sub>2.5</sub>, PM<sub>4</sub>, PM<sub>10</sub>
 - [Sensirion SGP40](https://www.sensirion.com/en/environmental-sensors/gas-sensors/sgp40/) - VOC detector
 - [TE MS5637](https://www.te.com/commerce/DocumentDelivery/DDEController?Action=srchrtrv&DocNm=MS5637-02BA03&DocType=Data+Sheet&DocLang=English) - barometric pressure
+- [Dongguan OPSCO Optoelectronics SK9822](https://www.opscoled.com/en/product/details.html?id=19) - Addressable RGB LED
 
 ## .NET Contributions
 

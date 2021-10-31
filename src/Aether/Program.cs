@@ -26,34 +26,46 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     using I2cDevice scd4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableScd4x.DefaultAddress));
     await using ObservableSensor scdDriver = ObservableScd4x.OpenSensor(scd4xDevice, dependencies: ms5637Driver);
 
-    // Initialize SHT4x
-    // using I2cDevice sht4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSht4x.DefaultAddress));
-    // await using ObservableSensor shtDriver = ObservableSht4x.OpenSensor(sht4xDevice, dependencies: Observable.Empty<Measurement>());
-
     // Initialize SGP4x, taking a dependency on SCD4x for temperature and relative humidity
     using I2cDevice sgp4xDevice = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSgp4x.DefaultAddress));
     await using ObservableSensor sgpDriver = ObservableSgp4x.OpenSensor(sgp4xDevice, dependencies: scdDriver);
 
+    // Initialize SPS30.
+    using I2cDevice sps30Device = I2cDevice.Create(new I2cConnectionSettings(1, ObservableSps30.DefaultAddress));
+    await using ObservableSensor spsDriver = ObservableSps30.OpenSensor(sps30Device, dependencies: Observable.Empty<Measurement>());
+
     // All the measurements funnel through here.
-    // Multiple sensors can support the same measures. In this case, both devices support temperature. To prevent inconsistencies, only use one.
+    // Multiple sensors can support the same measures. In this case, the MS5637 and SCD4x both support temperature. To prevent inconsistencies, only use one.
     IObservable<Measurement> measurements = Observable.Merge(
         ms5637Driver.Where(x => x.Measure == Measure.BarometricPressure),
         scdDriver,
-        sgpDriver
+        sgpDriver,
+        spsDriver
         );
 
-    // Initialize display.
+    // Initialize ePaper display.
     var spiConfig = new System.Device.Spi.SpiConnectionSettings(0, 0)
     {
-        ClockFrequency = 10000000
+        ClockFrequency = 10_000_000
     };
     using var gpio = new GpioController(PinNumberingScheme.Logical);
     using SpiDevice displayDevice = SpiDevice.Create(spiConfig);
     using var displayDriver = new WaveshareEPD2_9inV2(displayDevice, gpio, dcPinId: 25, rstPinId: 17, busyPinId: 24);
 
-    // Initialize the theme, which takes all the measurements and renders them to a display.
+    // Initialize ePaper theme, which takes all the measurements and renders them to a display.
     var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature, Measure.VOC };
-    using IDisposable theme = MultiLineTheme.CreateTheme(displayDriver, lines, measurements);
+    using IDisposable ePaperTheme = MultiLineTheme.Run(displayDriver, lines, measurements);
+
+    // Initialize RGB display.
+    spiConfig = new System.Device.Spi.SpiConnectionSettings(6)
+    {
+        ClockFrequency = 10_000_000
+    };
+    using SpiDevice rgbDevice = SpiDevice.Create(spiConfig);
+    using var rgbDriver = new Sk9822(rgbDevice, pixelCount: 4);
+
+    // Initialize RGB theme, which takes all the measurements and converts them to an RGB color for LEDs.
+    using IDisposable rgbTheme = RgbTheme.Run(rgbDriver, measurements);
 
     // Wait for Ctrl+C to exit.
     var tcs = new TaskCompletionSource();
@@ -123,7 +135,7 @@ themeTestCommand.Handler = CommandHandler.Create(() =>
 
     using var driver = new SimulatedDisplayDriver("out", 128, 296, 111.917383820998f, 112.399461802960f);
     using var sub = new Subject<Measurement>();
-    using IDisposable theme = MultiLineTheme.CreateTheme(driver, lines, sub);
+    using IDisposable theme = MultiLineTheme.Run(driver, lines, sub);
 
     sub.OnNext(Measurement.FromCo2(VolumeConcentration.FromPartsPerMillion(4312.25)));
     sub.OnNext(Measurement.FromRelativeHumidity(RelativeHumidity.FromPercent(59.1)));
@@ -137,12 +149,47 @@ themeTestCommand.Handler = CommandHandler.Create(() =>
 
 // Temporary command to test the display.
 // TODO: Make this more like a list/test format similar to sensor.
+var rgbTestCommand = new Command("rgb-test", "Tests RGB.");
+rgbTestCommand.Handler = CommandHandler.Create(async () =>
+{
+    var spiConfig = new System.Device.Spi.SpiConnectionSettings(6)
+    {
+        ClockFrequency = 10_000_000
+    };
+    using SpiDevice device = SpiDevice.Create(spiConfig);
+    using var driver = new Sk9822(device, pixelCount: 4);
+
+    using var sub = new Subject<Measurement>();
+    using IDisposable theme = RgbTheme.Run(driver, sub);
+
+    using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1.0 / 60.0));
+
+    const double min = 500.0;
+    const double max = 6100.0;
+    const double adj = (max - min) / (60.0 * 5.0);
+
+    double ppm = min;
+    do
+    {
+        Measurement m = Measurement.FromCo2(VolumeConcentration.FromPartsPerMillion(ppm));
+
+        await timer.WaitForNextTickAsync();
+
+        sub.OnNext(m);
+
+        ppm += adj;
+    }
+    while (ppm < max);
+});
+
+// Temporary command to test the display.
+// TODO: Make this more like a list/test format similar to sensor.
 var displayTestCommand = new Command("display-test", "Tests a display.");
 displayTestCommand.Handler = CommandHandler.Create(() =>
 {
     var spiConfig = new System.Device.Spi.SpiConnectionSettings(0, 0)
     {
-        ClockFrequency = 10000000
+        ClockFrequency = 10_000_000
     };
 
     var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature };
@@ -152,7 +199,7 @@ displayTestCommand.Handler = CommandHandler.Create(() =>
     using var driver = new WaveshareEPD2_9inV2(device, gpio, dcPinId: 25, rstPinId: 17, busyPinId: 24);
 
     using var sub = new Subject<Measurement>();
-    using IDisposable theme = MultiLineTheme.CreateTheme(driver, lines, sub);
+    using IDisposable theme = MultiLineTheme.Run(driver, lines, sub);
 
     sub.OnNext(Measurement.FromCo2(VolumeConcentration.FromPartsPerMillion(4312.25)));
     sub.OnNext(Measurement.FromRelativeHumidity(RelativeHumidity.FromPercent(59.1)));
@@ -174,6 +221,7 @@ var rootCommand = new RootCommand()
         simulateSensorCommand
     },
     themeTestCommand,
+    rgbTestCommand,
     displayTestCommand
 };
 

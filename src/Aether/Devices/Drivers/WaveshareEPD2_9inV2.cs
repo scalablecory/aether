@@ -45,16 +45,11 @@ namespace Aether.Devices.Drivers
         private readonly byte[] _imageBuffer;
         private bool _disposed;
 
-        public override int Width => 128;
-        public override int Height => 296;
         private int BitsPerImage => Width * Height;
         private int BytesPerImage => BitsPerImage / 8;
 
-        public override float DpiX => 111.917383820998f;
-
-        public override float DpiY => 112.399461802960f;
-
         public WaveshareEPD2_9inV2(SpiDevice device, GpioController gpio, int dcPinId = DefaultDcPin, int rstPinId = DefaultRstPin, int busyPinId = DefaultBusyPin)
+            : base(width: 128, height: 296, dpiX: 112.0f, dpiY: 112.0f)
         {
             _device = device;
             _gpio = gpio;
@@ -103,10 +98,10 @@ namespace Aether.Devices.Drivers
             }
         }
 
-        protected override Image CreateImageCore(int width, int height) =>
+        public override Image CreateImage(int width, int height) =>
             new Image<L8>(width, height);
 
-        public override void DisplayImage(Image image, DrawOrientation orientation = DrawOrientation.Default)
+        protected override void DisplayImageCore(Image image, DrawOrientation orientation)
         {
             if (image is not Image<L8> img)
             {
@@ -116,21 +111,11 @@ namespace Aether.Devices.Drivers
             switch (orientation)
             {
                 case DrawOrientation.Default:
-                    if (img.Width != Width || img.Height != Height)
-                    {
-                        throw new ArgumentException($"{nameof(image)} is of an invalid size for this orientation; {nameof(DisplayImage)} must be called with images created from {nameof(CreateImage)}.", nameof(image));
-                    }
                     ConvertTo1bpp(_imageBuffer, img);
                     break;
                 case DrawOrientation.Rotate90:
-                    if (img.Width != Height || img.Height != Width)
-                    {
-                        throw new ArgumentException($"{nameof(image)} is of an invalid size for this orientation; {nameof(DisplayImage)} must be called with images created from {nameof(CreateImage)}.", nameof(image));
-                    }
                     ConvertTo1bppRotated(_imageBuffer, img);
                     break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(orientation), $"{nameof(orientation)} is not a valid {nameof(DrawOrientation)} value.");
             }
 
             Debug.Assert(_imageBuffer.Length == 4736);
