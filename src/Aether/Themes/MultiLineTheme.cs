@@ -13,45 +13,30 @@ namespace Aether.Themes
     {
         private const float MarginInInches = 0.05f;
 
-        public static IDisposable Run(DisplayDriver driver, IEnumerable<Measure> lines, IObservable<Measurement> source)
+        public static IDisposable Run(DisplayDriver driver, IEnumerable<Measure> lines, IObservable<Measurement> source, bool vertical)
         {
-            Image image = driver.CreateImage(driver.Width, driver.Height);
+            // setup dimensions and common measurements.
+
+            (int imgWidth, int imgHeight, float dpiX, float dpiY, DrawOrientation drawOrientation) =
+                (vertical && driver.Height >= driver.Width) || (!vertical && driver.Width >= driver.Height)
+                ? (driver.Width, driver.Height, driver.DpiX, driver.DpiY, DrawOrientation.Default)
+                : (driver.Height, driver.Width, driver.DpiY, driver.DpiX, DrawOrientation.Rotate90);
+
+            float marginInPixelsX = MarginInInches * dpiX;
+            float marginInPixelsY = MarginInInches * dpiY;
+
+            // create image and load fonts.
+
+            Image image = driver.CreateImage(imgWidth, imgHeight);
 
             var fontCollection = new FontCollection();
             fontCollection.Install("fonts/Manrope-Regular.ttf");
 
             FontFamily fontFamily = fontCollection.Find("Manrope");
-            Font measurementFont = fontFamily.CreateFont(22.75f);
+            Font measurementFont = fontFamily.CreateFont(20.0f);
+            Font labelFont = fontFamily.CreateFont(7.0f);
 
-            DrawingOptions bottomRightAlignDrawingOptions = new DrawingOptions
-            {
-                GraphicsOptions =
-                {
-                    Antialias = false
-                },
-                TextOptions =
-                {
-                    DpiX = driver.DpiX,
-                    DpiY = driver.DpiY,
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    VerticalAlignment = VerticalAlignment.Bottom
-                }
-            };
-
-            // calculate measurement line height and measurement label width.
-
-            float dpiX = driver.DpiX;
-            float dpiY = driver.DpiY;
-            float marginInPixelsX = MarginInInches * dpiX;
-            float marginInPixelsY = MarginInInches * dpiY;
-
-            Font labelFont = fontFamily.CreateFont(7.4f);
-
-            var labelRendererOptions = new RendererOptions(labelFont)
-            {
-                DpiX = dpiX,
-                DpiY = dpiY
-            };
+            // find maximum measurement size.
 
             var measurementRendererOptions = new RendererOptions(measurementFont)
             {
@@ -59,56 +44,102 @@ namespace Aether.Themes
                 DpiY = dpiY
             };
 
-            float maxLineHeight = TextMeasurer.Measure("012345,678.9%", measurementRendererOptions).Height;
+            FontRectangle measurementRect = TextMeasurer.Measure("19,888", measurementRendererOptions);
+
+            // find maximum label size.
+
             float maxLabelWidth = 0.0f;
+            float maxLabelHeight = 0.0f;
 
-            var offsets = new Dictionary<Measure, int>();
+            var labelRendererOptions = new RendererOptions(labelFont)
+            {
+                DpiX = dpiX,
+                DpiY = dpiY
+            };
 
-            int i = 0;
             foreach (Measure measure in lines)
             {
                 FontRectangle rect = TextMeasurer.Measure(GetMeasureLabel(measure), labelRendererOptions);
 
-                maxLineHeight = MathF.Max(maxLineHeight, rect.Height);
                 maxLabelWidth = MathF.Max(maxLabelWidth, rect.Width);
-
-                offsets[measure] = ++i;
+                maxLabelHeight = MathF.Max(maxLabelHeight, rect.Height);
             }
 
-            int labelOffsetX = image.Width - (int)MathF.Ceiling(marginInPixelsX + maxLabelWidth);
+            // find line size. with '-' being margin, 'M' being measurement, and 'L' being label, this looks like:
+            // ----
+            // M-L-
 
-            // these two will be used to know our draw areas.
+            float labelAndMarginWidth = MathF.Ceiling(maxLabelWidth + marginInPixelsX * 2.0f);
+            float lineWidth = MathF.Ceiling(measurementRect.Width + labelAndMarginWidth);
+            float lineHeight = MathF.Ceiling(Math.Max(measurementRect.Height, maxLabelHeight) + MarginInInches);
 
-            float measureOffsetX = MathF.Floor(labelOffsetX - marginInPixelsX);
-            int measureHeight = (int)Math.Ceiling(maxLineHeight + marginInPixelsY);
+            // find number of columns/rows to fit on the display.
 
-            // draw static labels.
+            int columnCount = Math.Max(imgWidth / (int)lineWidth, 1);
+            int rowCount = Math.Max(imgHeight / (int)lineHeight, 1);
 
-            var bottomLeftAlignDrawingOptions = new DrawingOptions
+            lineWidth = (imgWidth + columnCount - 1) / columnCount;
+
+            // map measures to column/row.
+
+            var offsets = new Dictionary<Measure, PointF>();
+
+            int x = 0, y = 0;
+            foreach (Measure measure in lines)
+            {
+                float offsetX = (x + 1) * lineWidth - labelAndMarginWidth;
+                float offsetY = (y + 1) * lineHeight;
+                offsets[measure] = new PointF(offsetX, offsetY);
+
+                if (++x == columnCount)
+                {
+                    ++y;
+                    x = 0;
+                }
+            }
+
+            // setup drawing options.
+            // bottom left for labels, bottom right for measurements.
+
+            var labelDrawingOptions = new DrawingOptions
             {
                 GraphicsOptions = { Antialias = false },
-                TextOptions = { DpiX = dpiX, DpiY = dpiY, VerticalAlignment = VerticalAlignment.Bottom }
+                TextOptions =
+                {
+                    DpiX = dpiX,
+                    DpiY = dpiY,
+                    VerticalAlignment = VerticalAlignment.Bottom
+                }
             };
+
+            var measurementDrawingOptions = new DrawingOptions
+            {
+                GraphicsOptions = { Antialias = false },
+                TextOptions =
+                {
+                    DpiX = dpiX,
+                    DpiY = dpiY,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Bottom
+                }
+            };
+
+            // draw static labels.
 
             image.Mutate(ctx =>
             {
                 ctx.Fill(Color.White);
 
-                foreach ((Measure measure, int offset) in offsets)
+                foreach ((Measure measure, PointF location) in offsets)
                 {
-                    // This is how much to move the label up to match the baseline of measures.
-                    // When ImageSharp supports getting the various measurements of strings, use that instead.
-                    const int baselineOffsetY = 7;
+                    var adjustedLocation = new PointF(location.X + marginInPixelsX, location.Y - 6.0f);
 
                     string text = GetMeasureLabel(measure);
-                    int labelOffsetY = offset * measureHeight - baselineOffsetY;
-                    var location = new PointF(labelOffsetX, labelOffsetY);
-
-                    ctx.DrawText(bottomLeftAlignDrawingOptions, text, labelFont, Color.Black, location);
+                    ctx.DrawText(labelDrawingOptions, text, labelFont, Color.Black, adjustedLocation);
                 }
             });
 
-            driver.DisplayImage(image);
+            driver.DisplayImage(image, drawOrientation);
 
             // wire up against the source.
             // TODO: abstract and localize stringy bits.
@@ -117,19 +148,18 @@ namespace Aether.Themes
 
             return source.Gate().Subscribe(measurements =>
             {
+                bool draw = false;
+
                 for (int i = measurements.Count - 1; i >= 0; --i)
                 {
                     Measurement measurement = measurements[i];
                     
-                    if (!seen.Add(measurement.Measure))
+                    if (!seen.Add(measurement.Measure) || !offsets.TryGetValue(measurement.Measure, out PointF location))
                     {
                         continue;
                     }
 
-                    if (!offsets.TryGetValue(measurement.Measure, out int measureOffset))
-                    {
-                        return;
-                    }
+                    draw = true;
 
                     string text = measurement.Measure switch
                     {
@@ -138,21 +168,32 @@ namespace Aether.Themes
                         Measure.CO2 => measurement.Co2.PartsPerMillion.ToString("N0"),
                         Measure.BarometricPressure => measurement.BarometricPressure.Atmospheres.ToString("N2"),
                         Measure.VOC => measurement.Voc.Value.ToString(),
+                        Measure.PM1_0 or Measure.PM2_5 or Measure.PM4_0 or Measure.PM10_0 => measurement.MassConcentration.MicrogramsPerCubicMeter.ToString("N0"),
+                        Measure.P1_0 or Measure.P2_5 or Measure.P4_0 or Measure.P10_0 => measurement.NumberConcentration.Value.ToString("N0"),
+                        Measure.TypicalParticleSize => measurement.Length.Micrometers.ToString("N1"),
                         _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")
                     };
 
-                    int measureOffsetY = measureOffset * measureHeight;
-                    var location = new PointF(measureOffsetX, measureOffsetY);
-
                     image.Mutate(ctx =>
                     {
-                        ctx.Fill(Color.White, new RectangleF(0.0f, measureOffsetY - measureHeight, measureOffsetX, measureHeight));
-                        ctx.DrawText(bottomRightAlignDrawingOptions, text, measurementFont, Color.Black, location);
+                        ctx.Fill(Color.White, new RectangleF(
+                            MathF.Floor(location.X - measurementRect.Width),
+                            MathF.Floor(location.Y - lineHeight),
+                            MathF.Ceiling(measurementRect.Width),
+                            MathF.Ceiling(lineHeight)
+                            ));
+
+                        // TODO: it's possible super large values (PM2.5 seems to have this issue) will overwrite the labels.
+                        ctx.DrawText(measurementDrawingOptions, text, measurementFont, Color.Black, location);
                     });
                 }
 
                 seen.Clear();
-                driver.DisplayImage(image);
+
+                if (draw)
+                {
+                    driver.DisplayImage(image, drawOrientation);
+                }
             });
         }
 
@@ -163,6 +204,15 @@ namespace Aether.Themes
             Measure.CO2 => "CO₂\nppm",
             Measure.BarometricPressure => "Atm",
             Measure.VOC => "VOC\nIdx",
+            Measure.PM1_0 => "PM₁.₀\nμg/m³",
+            Measure.PM2_5 => "PM₂.₅\nμg/m³",
+            Measure.PM4_0 => "PM₄.₀\nμg/m³",
+            Measure.PM10_0 => "PM₁₀.₀\nμg/m³",
+            Measure.P1_0 => "PM₁.₀\n#/cm³",
+            Measure.P2_5 => "PM₂.₅\n#/cm³",
+            Measure.P4_0 => "PM₄.₀\n#/cm³",
+            Measure.P10_0 => "PM₁₀.₀\n#/cm³",
+            Measure.TypicalParticleSize => "P.Sz.\nμm",
             _ => throw new Exception($"Unsupported measure '{measure}'.")
         };
     }

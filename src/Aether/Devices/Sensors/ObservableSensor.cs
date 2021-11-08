@@ -1,9 +1,6 @@
-﻿using Aether.CustomUnits;
-using Aether.Devices.Drivers;
+﻿using System.Reactive.Subjects;
+using Aether.CustomUnits;
 using Aether.Devices.Sensors.Metadata;
-using System.Diagnostics.CodeAnalysis;
-using System.Reactive.Subjects;
-using System.Runtime.CompilerServices;
 using UnitsNet;
 
 namespace Aether.Devices.Sensors

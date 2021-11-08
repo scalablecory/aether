@@ -23,7 +23,7 @@ namespace Aether.Devices.Drivers
     /// Air Particulate Sensor SPS30
     /// </summary>
     public sealed class Sps30 : System.IDisposable
-    {        
+    {
         /// <summary>
         /// The default I²C address of this device.
         /// </summary>
@@ -238,13 +238,8 @@ namespace Aether.Devices.Drivers
         {
             // Start measurement command 0x00, 0x01
             // Measurement mode 0x03 with dummy byte 0x00 and CRC
-            Span<byte> bytes = stackalloc byte[3];
-            Sensirion.WriteUInt16BigEndianAndCRC8(bytes, 0x0300);
 
-            // Start measurement command 0x00, 0x01
-            // Measurement mode 0x03 with dummy byte 0x00
-
-            ReadOnlySpan<byte> startMeasurementCommand = stackalloc byte[5] { 0x00, 0x10, 0x03, 0x00, 0xAC };
+            ReadOnlySpan<byte> startMeasurementCommand = new byte[5] { 0x00, 0x10, 0x03, 0x00, 0xAC };
 
             // Write start measurement
             _device.Write(startMeasurementCommand);
