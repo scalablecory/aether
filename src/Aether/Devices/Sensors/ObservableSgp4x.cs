@@ -74,7 +74,11 @@ namespace Aether.Devices.Sensors
                 {
                     vocIndex = _sensor.ReadVocMeasurement();
                 }
-                if (vocIndex is not null) OnNextVolitileOrganicCompound(vocIndex.Value);
+
+                if (vocIndex is not null)
+                {
+                    OnNextVolitileOrganicCompound(vocIndex.Value);
+                }
             }
         }
     }

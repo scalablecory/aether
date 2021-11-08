@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Device.I2c;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Device.I2c;
 using Aether.Devices.Drivers;
 using Aether.Devices.Sensors.Metadata;
 
@@ -12,12 +7,10 @@ namespace Aether.Devices.Sensors
     internal class ObservableSps30 : ObservableSensor, IObservableI2cSensorFactory
     {
         private readonly Sps30 _sensor;
-        private readonly IObservable<Measurement> _dependencies;
 
-        private ObservableSps30(I2cDevice device, IObservable<Measurement> dependencies)
+        private ObservableSps30(I2cDevice device)
         {
-            _sensor = new Drivers.Sps30(device);
-            _dependencies = dependencies;
+            _sensor = new Sps30(device);
             Start();
         }
 
@@ -46,7 +39,7 @@ namespace Aether.Devices.Sensors
         public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
         public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) => new ObservableSps30(device, dependencies);
+        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) => new ObservableSps30(device);
 
         protected override void DisposeCore() => _sensor.Dispose();
 
