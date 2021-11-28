@@ -11,7 +11,10 @@ namespace Aether.Themes
 {
     internal sealed class MultiLineTheme
     {
-        private const float MarginInInches = 0.05f;
+        private const float OuterMarginInInches = 0.1f;
+        private const float InnerMarginInInches = 0.0f;
+        private const float MeasurementSizeInPoints = 20.0f;
+        private const float LabelSizeInPoints = 7.0f;
 
         public static IDisposable Run(DisplayDriver driver, IEnumerable<Measure> lines, IObservable<Measurement> source, bool vertical)
         {
@@ -22,8 +25,14 @@ namespace Aether.Themes
                 ? (driver.Width, driver.Height, driver.DpiX, driver.DpiY, DrawOrientation.Default)
                 : (driver.Height, driver.Width, driver.DpiY, driver.DpiX, DrawOrientation.Rotate90);
 
-            float marginInPixelsX = MarginInInches * dpiX;
-            float marginInPixelsY = MarginInInches * dpiY;
+            int outerMarginInPixelsX = (int)MathF.Ceiling(OuterMarginInInches * dpiX);
+            int outerMarginInPixelsY = (int)MathF.Ceiling(OuterMarginInInches * dpiY);
+
+            int innerMarginInPixelsX = (int)MathF.Ceiling(InnerMarginInInches * dpiX);
+            int innerMarginInPixelsY = (int)MathF.Ceiling(InnerMarginInInches * dpiY);
+
+            int workingWidth = imgWidth - outerMarginInPixelsX * 2;
+            int workingHeight = imgHeight - outerMarginInPixelsY * 2;
 
             // create image and load fonts.
 
@@ -33,8 +42,8 @@ namespace Aether.Themes
             fontCollection.Install("fonts/Manrope-Regular.ttf");
 
             FontFamily fontFamily = fontCollection.Find("Manrope");
-            Font measurementFont = fontFamily.CreateFont(20.0f);
-            Font labelFont = fontFamily.CreateFont(7.0f);
+            Font measurementFont = fontFamily.CreateFont(MeasurementSizeInPoints);
+            Font labelFont = fontFamily.CreateFont(LabelSizeInPoints);
 
             // find maximum measurement size.
 
@@ -45,6 +54,7 @@ namespace Aether.Themes
             };
 
             FontRectangle measurementRect = TextMeasurer.Measure("19,888", measurementRendererOptions);
+            int measurementWidth = (int)MathF.Ceiling(measurementRect.Width);
 
             // find maximum label size.
 
@@ -65,31 +75,31 @@ namespace Aether.Themes
                 maxLabelHeight = MathF.Max(maxLabelHeight, rect.Height);
             }
 
-            // find line size. with '-' being margin, 'M' being measurement, and 'L' being label, this looks like:
-            // ----
-            // M-L-
+            // find line size.
 
-            float labelAndMarginWidth = MathF.Ceiling(maxLabelWidth + marginInPixelsX * 2.0f);
-            float lineWidth = MathF.Ceiling(measurementRect.Width + labelAndMarginWidth);
-            float lineHeight = MathF.Ceiling(Math.Max(measurementRect.Height, maxLabelHeight) + MarginInInches);
+            int labelAndMarginWidth = (int)MathF.Ceiling(maxLabelWidth + innerMarginInPixelsX);
+            int lineWidth = (int)MathF.Ceiling(measurementWidth + labelAndMarginWidth);
+            int lineHeight = (int)MathF.Ceiling(Math.Max(measurementRect.Height, maxLabelHeight));
 
             // find number of columns/rows to fit on the display.
 
-            int columnCount = Math.Max(imgWidth / (int)lineWidth, 1);
-            int rowCount = Math.Max(imgHeight / (int)lineHeight, 1);
+            int columnCount = Math.Max((workingWidth + innerMarginInPixelsX) / (lineWidth + innerMarginInPixelsX), 1);
+            int rowCount = Math.Max((workingHeight + innerMarginInPixelsY) / (lineHeight + innerMarginInPixelsY), 1);
 
-            lineWidth = (imgWidth + columnCount - 1) / columnCount;
+            // adjust line width to take up full screen.
+
+            lineWidth = (workingWidth - (innerMarginInPixelsX * (columnCount - 1))) / columnCount;
 
             // map measures to column/row.
 
-            var offsets = new Dictionary<Measure, PointF>();
+            var offsets = new Dictionary<Measure, Point>();
 
             int x = 0, y = 0;
             foreach (Measure measure in lines)
             {
-                float offsetX = (x + 1) * lineWidth - labelAndMarginWidth;
-                float offsetY = (y + 1) * lineHeight;
-                offsets[measure] = new PointF(offsetX, offsetY);
+                int offsetX = imgWidth - outerMarginInPixelsX - (columnCount - x - 1) * (lineWidth + innerMarginInPixelsX) - labelAndMarginWidth;
+                int offsetY = outerMarginInPixelsY + (lineHeight + innerMarginInPixelsY) * y + lineHeight;
+                offsets[measure] = new Point(offsetX, offsetY);
 
                 if (++x == columnCount)
                 {
@@ -130,9 +140,9 @@ namespace Aether.Themes
             {
                 ctx.Fill(Color.White);
 
-                foreach ((Measure measure, PointF location) in offsets)
+                foreach ((Measure measure, Point location) in offsets)
                 {
-                    var adjustedLocation = new PointF(location.X + marginInPixelsX, location.Y - 6.0f);
+                    var adjustedLocation = new PointF(location.X + innerMarginInPixelsX, location.Y - 6);
 
                     string text = GetMeasureLabel(measure);
                     ctx.DrawText(labelDrawingOptions, text, labelFont, Color.Black, adjustedLocation);
@@ -154,7 +164,7 @@ namespace Aether.Themes
                 {
                     Measurement measurement = measurements[i];
                     
-                    if (!seen.Add(measurement.Measure) || !offsets.TryGetValue(measurement.Measure, out PointF location))
+                    if (!seen.Add(measurement.Measure) || !offsets.TryGetValue(measurement.Measure, out Point location))
                     {
                         continue;
                     }
@@ -177,10 +187,10 @@ namespace Aether.Themes
                     image.Mutate(ctx =>
                     {
                         ctx.Fill(Color.White, new RectangleF(
-                            MathF.Floor(location.X - measurementRect.Width),
-                            MathF.Floor(location.Y - lineHeight),
-                            MathF.Ceiling(measurementRect.Width),
-                            MathF.Ceiling(lineHeight)
+                            location.X - measurementWidth,
+                            location.Y - lineHeight,
+                            measurementWidth,
+                            lineHeight
                             ));
 
                         // TODO: it's possible super large values (PM2.5 seems to have this issue) will overwrite the labels.

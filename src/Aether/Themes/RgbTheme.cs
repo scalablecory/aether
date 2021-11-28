@@ -91,7 +91,7 @@ namespace Aether.Themes
                 byte gi = (byte)Convert.ToInt32(Math.Clamp(rgb.G * 255.0f, 0.0f, 255.0f));
                 byte bi = (byte)Convert.ToInt32(Math.Clamp(rgb.B * 255.0f, 0.0f, 255.0f));
 
-                Color color = Color.FromRgba(ri, gi, bi, a: 8);
+                Color color = Color.FromRgba(ri, gi, bi, a: 16);
                 image.Mutate(ctx => ctx.Clear(color));
 
                 display.DisplayImage(image);

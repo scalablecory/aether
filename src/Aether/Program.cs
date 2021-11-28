@@ -33,7 +33,7 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     using I2cDevice scd4xDevice = bus.CreateDevice(ObservableScd4x.DefaultAddress);
     await using ObservableSensor scdDriver = ObservableScd4x.OpenSensor(scd4xDevice, dependencies: ms5637Driver);
 
-    // Initialize SGP4x, taking a dependency on SCD4x for temperature and relative humidity
+    // Initialize SGP4x, taking a dependency on SCD4x for temperature and relative humidity.
     using I2cDevice sgp4xDevice = bus.CreateDevice(ObservableSgp4x.DefaultAddress);
     await using ObservableSensor sgpDriver = ObservableSgp4x.OpenSensor(sgp4xDevice, dependencies: scdDriver);
 
@@ -56,8 +56,8 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     using var displayDriver = new WaveshareEPD2_9inV2(displayDevice, gpio, dcPinId: 25, rstPinId: 17, busyPinId: 24);
 
     // Initialize ePaper theme, which takes all the measurements and renders them to a display.
-    var lines = new[] { Measure.CO2, Measure.PM1_0, Measure.PM2_5, Measure.PM4_0, Measure.PM10_0, Measure.VOC, Measure.Temperature };
-    using IDisposable ePaperTheme = MultiLineTheme.Run(displayDriver, lines, measurements, vertical: true);
+    var lines = new[] { Measure.CO2, Measure.VOC, Measure.PM1_0, Measure.PM2_5, Measure.PM4_0, Measure.PM10_0 };
+    using IDisposable ePaperTheme = MultiLineTheme.Run(displayDriver, lines, measurements, vertical: false);
 
     // Initialize RGB display.
     spiConfig = new SpiConnectionSettings(1)
@@ -65,7 +65,7 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
         ClockFrequency = 10_000_000
     };
     using SpiDevice rgbDevice = SpiDevice.Create(spiConfig);
-    using var rgbDriver = new Sk9822(rgbDevice, pixelCount: 4);
+    using var rgbDriver = new Sk9822(rgbDevice, pixelCount: 29);
 
     // Initialize RGB theme, which takes all the measurements and converts them to an RGB color for LEDs.
     using IDisposable rgbTheme = RgbTheme.Run(rgbDriver, measurements);
@@ -137,7 +137,7 @@ simulateSensorCommand.Handler = CommandHandler.Create((string name) => RunAndPri
 var themeTestCommand = new Command("theme-test", "Tests a theme.");
 themeTestCommand.Handler = CommandHandler.Create(() =>
 {
-    var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature };
+    var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature, Measure.PM2_5, Measure.PM10_0 };
 
     using var driver = new SimulatedDisplayDriver("out", 128, 296, 111.917383820998f, 112.399461802960f);
     using var sub = new Subject<Measurement>();
