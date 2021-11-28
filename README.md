@@ -2,14 +2,17 @@
 
 Aether is an air quality monitoring software and device, Open Source and powered by .NET 6.
 
-This project is a WIP.
+## Features
 
-## Features / Ideas
-
+- At-a-glance air quality monitoring.
 - Small standalone device with a custom 3D-printed case.
+- No-solder plug-and-play hardware.
+
+### Planned
+
+- SD image for easy deployment.
 - Monitor air quality over a Web Bluetooth enabled website.
 - Monitor air quality over Bluetooth/WiFi via a .NET MAUI app.
-- No-solder plug-and-play hardware and SD card image for easy deployment.
 - (Optionally) Join a WiFi network for multi-room monitoring.
 - (Maybe) MQTT support.
 - (Maybe) LoRa / LoRaWAN support.
@@ -25,20 +28,16 @@ Contributions are welcome. Please [contact me](https://github.com/scalablecory) 
 
 Aether could use contributions for:
 
-- Web and mobile dev, for [apps](Bluetooth%20Apps.md).
+- Web and mobile dev, for Bluetooth apps.
 - Linux deployment (install instructions and/or SD image creation)
 - Linux Bluetooth (need to make the Aether into a BLE device)
 - Driver dev (C#).
 - General .NET dev (C#).
 - 3D modeling for case design.
 
-> If you are a Microsoft employee, Aether is participating in [Hackathon 2021](planning/Hackathon%202021.md). Please sign up at [The Garage](https://garagehackbox.azurewebsites.net/hackathons/2356/projects/105003).
-
 ## Hardware Support
 
-Initial support will use specific hardware to support [Build A](builds/a.md). In the future, lower cost options will be supported.
-
-- [Raspberry Pi](https://www.raspberrypi.org/)
+- [Raspberry Pi](https://www.raspberrypi.org/) - 3B, 4B, and Zero 2
 - [Waveshare 2.9" E-ink display](https://www.waveshare.com/product/displays/e-paper/epaper-2/2.9inch-e-paper-module.htm)
 - [Sensirion SCD4x](https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors/carbon-dioxide-sensor-scd4x/) - CO<sub>2</sub>, temperature, relative humidity
 - [Sensirion SHT4x](https://www.sensirion.com/en/environmental-sensors/humidity-sensors/humidity-sensor-sht4x/) - temperature, relative humidity
