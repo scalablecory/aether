@@ -154,11 +154,13 @@ namespace Aether.Devices.Drivers
 
         private static void ConvertTo1bppRotated(Span<byte> dest, Image<L8> src)
         {
-            int width = src.Width;
-            int height = src.Height;
-            int destIdx = 0;
+            int srcWidth = src.Width;
+            int srcHeight = src.Height;
 
-            for (int y = 0; y < height; y += 8)
+            int destHeight = srcWidth;
+            int destWidth = srcHeight / 8;
+
+            for (int y = 0; y < srcHeight; y += 8)
             {
                 Span<L8> row0 = src.GetPixelRowSpan(y);
                 Span<L8> row1 = src.GetPixelRowSpan(y + 1);
@@ -169,9 +171,11 @@ namespace Aether.Devices.Drivers
                 Span<L8> row6 = src.GetPixelRowSpan(y + 6);
                 Span<L8> row7 = src.GetPixelRowSpan(y + 7);
 
-                for (int x = 0; x < width; ++x)
+                int destIdx = destWidth * destHeight + y / 8;
+
+                for (int x = 0; x < srcWidth; ++x)
                 {
-                    dest[destIdx++] =
+                    byte pixel =
                         (byte)(
                         (0b10000000 & ((sbyte)row0[x].PackedValue >> 7)) |
                         (0b01000000 & ((sbyte)row1[x].PackedValue >> 7)) |
@@ -182,6 +186,9 @@ namespace Aether.Devices.Drivers
                         (0b00000010 & ((sbyte)row6[x].PackedValue >> 7)) |
                         (0b00000001 & ((sbyte)row7[x].PackedValue >> 7))
                         );
+
+                    destIdx -= destWidth;
+                    dest[destIdx] = pixel;
                 }
             }
         }
