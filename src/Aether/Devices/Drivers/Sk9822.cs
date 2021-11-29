@@ -85,7 +85,7 @@ namespace Aether.Devices.Drivers
         public override Image CreateImage(int width, int height) =>
             new Image<Rgba32>(width, height);
 
-        protected override void DrawImageCore(Image srcImage, int fillPositionX, int fillPositionY, DrawOrientation orientation)
+        protected override void DrawImageCore(Image srcImage, int fillPositionX, int fillPositionY, DrawOptions options)
         {
             if (srcImage is not Image<Rgba32> img)
             {

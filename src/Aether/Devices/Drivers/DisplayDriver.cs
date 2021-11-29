@@ -52,28 +52,25 @@ namespace Aether.Devices.Drivers
         /// Displays an image to the device.
         /// </summary>
         /// <param name="image">The image to display. Must have been created via <see cref="CreateImage(int, int)"/> on this <see cref="DisplayDriver"/>.</param>
-        /// <param name="orientation">The orientation to display the image in</param>
+        /// <param name="options">Options controlling how the image is displayed.</param>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
         /// <exception cref="ArgumentException"></exception>
-        public void DisplayImage(Image image, DrawOrientation orientation = DrawOrientation.Default)
+        public void DisplayImage(Image image, DrawOptions options = DrawOptions.None)
         {
-            (int width, int height) = orientation switch
-            {
-                DrawOrientation.Default => (Width, Height),
-                DrawOrientation.Rotate90 => (Height, Width),
-                _ => throw new ArgumentOutOfRangeException(nameof(orientation), $"{nameof(orientation)} is not a valid {nameof(DrawOrientation)} value.")
-            };
+            (int width, int height) = options.HasFlag(DrawOptions.Rotate90)
+                ? (Height, Width)
+                : (Width, Height);
 
             if (image.Width != width || image.Height != height)
             {
                 throw new ArgumentException($"{nameof(image)} is of an invalid size for this orientation; {nameof(DisplayImage)} must be called with images created from {nameof(CreateImage)}.", nameof(image));
             }
 
-            DisplayImageCore(image, orientation);
+            DisplayImageCore(image, options);
         }
 
-        /// <inheritdoc cref="DisplayImage(Image, DrawOrientation)"/>
-        protected abstract void DisplayImageCore(Image image, DrawOrientation orientation);
+        /// <inheritdoc cref="DisplayImage(Image, DrawOptions)"/>
+        protected abstract void DisplayImageCore(Image image, DrawOptions options);
 
         public abstract void Dispose();
     }

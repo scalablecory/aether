@@ -37,6 +37,29 @@ namespace Aether.Devices.Drivers
             0x22,   0x17,   0x41,   0x0,    0x32,   0x36
         };
 
+        private static ReadOnlySpan<byte> s_PartialLUT => new byte[]
+        {
+            0x0,    0x40,   0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x80,   0x80,   0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x40,   0x40,   0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x80,   0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0A,   0x0,    0x0,    0x0,    0x0,    0x0,    0x2,
+            0x1,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x1,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x0,    0x0,    0x0,    0x0,    0x0,    0x0,    0x0,
+            0x22,   0x22,   0x22,   0x22,   0x22,   0x22,   0x0,    0x0,    0x0,
+            0x22,   0x17,   0x41,   0xB0,   0x32,   0x36,
+        };
+
         private readonly SpiDevice _device;
         private readonly GpioController _gpio;
         private readonly int _dcPinId;
@@ -101,28 +124,45 @@ namespace Aether.Devices.Drivers
         public override Image CreateImage(int width, int height) =>
             new Image<L8>(width, height);
 
-        protected override void DisplayImageCore(Image image, DrawOrientation orientation)
+        protected override void DisplayImageCore(Image image, DrawOptions options)
         {
             if (image is not Image<L8> img)
             {
                 throw new ArgumentException($"{nameof(image)} is of an invalid type; {nameof(DisplayImage)} must be called with images created from {nameof(CreateImage)}.", nameof(image));
             }
 
-            switch (orientation)
+            if (!options.HasFlag(DrawOptions.Rotate90))
             {
-                case DrawOrientation.Default:
-                    ConvertTo1bpp(_imageBuffer, img);
-                    break;
-                case DrawOrientation.Rotate90:
-                    ConvertTo1bppRotated(_imageBuffer, img);
-                    break;
+                ConvertTo1bpp(_imageBuffer, img);
+            }
+            else
+            {
+                ConvertTo1bppRotated(_imageBuffer, img);
             }
 
             Debug.Assert(_imageBuffer.Length == 4736);
 
-            SetImage(_imageBuffer);
-            SetPaintMode(DisplayUpdateMode.Full); // TODO: does this need to be set every draw?
-            SwapFrameBuffers();
+            if (!options.HasFlag(DrawOptions.PartialRefresh))
+            {
+                SetImage(_imageBuffer);
+                SetPaintMode(DisplayUpdateMode.DisplayFull); // TODO: does this need to be set every draw?
+                SwapFrameBuffers();
+            }
+            else
+            {
+                Reset();
+                SetLUT(s_PartialLUT);
+                SendCommand(0x37, new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x00, 0x00, 0x00 });
+                SendCommand(0x3C, 0x80); // BorderWavefrom
+                SetPaintMode(DisplayUpdateMode.BufferPartial);
+                SwapFrameBuffers();
+
+                SetWindow(0, 0, (uint)Width - 1, (uint)Height - 1);
+                SetCursor(0, 0);
+                SetImage(_imageBuffer);
+                SetPaintMode(DisplayUpdateMode.DisplayPartial);
+                SwapFrameBuffers();
+            }
         }
 
         private static void ConvertTo1bpp(Span<byte> dest, Image<L8> src)
@@ -162,14 +202,14 @@ namespace Aether.Devices.Drivers
 
             for (int y = 0; y < srcHeight; y += 8)
             {
-                Span<L8> row0 = src.GetPixelRowSpan(y);
-                Span<L8> row1 = src.GetPixelRowSpan(y + 1);
-                Span<L8> row2 = src.GetPixelRowSpan(y + 2);
-                Span<L8> row3 = src.GetPixelRowSpan(y + 3);
-                Span<L8> row4 = src.GetPixelRowSpan(y + 4);
-                Span<L8> row5 = src.GetPixelRowSpan(y + 5);
-                Span<L8> row6 = src.GetPixelRowSpan(y + 6);
-                Span<L8> row7 = src.GetPixelRowSpan(y + 7);
+                Span<L8> row0 = src.GetPixelRowSpan(y).Slice(0, srcWidth);
+                Span<L8> row1 = src.GetPixelRowSpan(y + 1).Slice(0, srcWidth);
+                Span<L8> row2 = src.GetPixelRowSpan(y + 2).Slice(0, srcWidth);
+                Span<L8> row3 = src.GetPixelRowSpan(y + 3).Slice(0, srcWidth);
+                Span<L8> row4 = src.GetPixelRowSpan(y + 4).Slice(0, srcWidth);
+                Span<L8> row5 = src.GetPixelRowSpan(y + 5).Slice(0, srcWidth);
+                Span<L8> row6 = src.GetPixelRowSpan(y + 6).Slice(0, srcWidth);
+                Span<L8> row7 = src.GetPixelRowSpan(y + 7).Slice(0, srcWidth);
 
                 int destIdx = destWidth * destHeight + y / 8;
 
@@ -207,7 +247,7 @@ namespace Aether.Devices.Drivers
             _gpio.Write(_rstPinId, PinValue.High);
             Thread.Sleep(10);
             _gpio.Write(_rstPinId, PinValue.Low);
-            Thread.Sleep(2);
+            Thread.Sleep(10);
             _gpio.Write(_rstPinId, PinValue.High);
             Thread.Sleep(10);
             ReadBusy();
@@ -283,10 +323,15 @@ namespace Aether.Devices.Drivers
         private void SetDisplayUpdateControl() =>
             SendCommand(0x21, new byte[] { 0x00, 0x80 });
 
-        private void SetLUTByHost(ReadOnlySpan<byte> lut)
+        private void SetLUT(ReadOnlySpan<byte> lut)
         {
             SendCommand(0x32, lut[..153]);      // LUT
             ReadBusy();
+        }
+
+        private void SetLUTByHost(ReadOnlySpan<byte> lut)
+        {
+            SetLUT(lut);
 
             SendCommand(0x3F, lut[153..154]);   // Unknown.
             SendCommand(0x03, lut[154..155]);   // Gate voltage.
@@ -330,19 +375,17 @@ namespace Aether.Devices.Drivers
         /// </summary>
         private void ReadBusy()
         {
-            bool busy;
-            do
+            while (_gpio.Read(_busyPinId) == PinValue.High)
             {
-                busy = _gpio.Read(_busyPinId) == PinValue.High;
                 Thread.Sleep(50);
             }
-            while (busy);
         }
 
         private enum DisplayUpdateMode : byte
         {
-            Full = 0xC7,
-            Partial = 0x0F
+            DisplayFull = 0xC7,
+            BufferPartial = 0xC0,
+            DisplayPartial = 0x0F
         }
     }
 }

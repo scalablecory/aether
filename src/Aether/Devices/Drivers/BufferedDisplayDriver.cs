@@ -22,38 +22,35 @@ namespace Aether.Devices.Drivers
         /// <summary>
         /// Draws an image onto the pixel buffer.
         /// </summary>
-        /// <param name="srcImage">The <see cref="Image"/> to draw onto the pixel buffer. Must have been created via <see cref="DisplayDriver.CreateImage(DrawOrientation)"/> on this instance.</param>
+        /// <param name="srcImage">The <see cref="Image"/> to draw onto the pixel buffer. Must have been created via <see cref="DisplayDriver.CreateImage()"/> on this instance.</param>
         /// <param name="fillPositionX">The X position to draw the image at.</param>
         /// <param name="fillPositionY">The Y position to draw the image at.</param>
-        /// <param name="orientation">The orientation to draw the image in.</param>
-        public void DrawImage(Image srcImage, int fillPositionX, int fillPositionY, DrawOrientation orientation = DrawOrientation.Default)
+        /// <param name="options">Options controlling how the image is drawn.</param>
+        public void DrawImage(Image srcImage, int fillPositionX, int fillPositionY, DrawOptions options = DrawOptions.None)
         {
-            (int w, int h) = orientation switch
-            {
-                DrawOrientation.Default => (srcImage.Width, srcImage.Height),
-                DrawOrientation.Rotate90 => (srcImage.Height, srcImage.Width),
-                _ => throw new ArgumentOutOfRangeException(nameof(orientation), orientation, $"{nameof(orientation)} is not a valid {nameof(DrawOrientation)} value.")
-            };
+            (int w, int h) = options.HasFlag(DrawOptions.Rotate90)
+                ? (srcImage.Height, srcImage.Width)
+                : (srcImage.Width, srcImage.Height);
 
             if (Width - fillPositionX < w || Height - fillPositionY < h)
             {
                 throw new ArgumentException($"{nameof(srcImage)} is of an invalid size for this orientation; {nameof(DisplayImage)} must be called with images created from {nameof(CreateImage)}.", nameof(srcImage));
             }
 
-            DrawImageCore(srcImage, fillPositionX, fillPositionY, orientation);
+            DrawImageCore(srcImage, fillPositionX, fillPositionY, options);
         }
 
-        /// <inheritdoc cref="DrawImage(Image, int, int, DrawOrientation)"/>
-        protected abstract void DrawImageCore(Image srcImage, int fillPositionX, int fillPositionY, DrawOrientation orientation);
+        /// <inheritdoc cref="DrawImage(Image, int, int, DrawOptions)"/>
+        protected abstract void DrawImageCore(Image srcImage, int fillPositionX, int fillPositionY, DrawOptions options);
 
         /// <summary>
         /// Flushes the pixel buffer to the device.
         /// </summary>
         public abstract void Flush();
 
-        protected sealed override void DisplayImageCore(Image image, DrawOrientation orientation)
+        protected sealed override void DisplayImageCore(Image image, DrawOptions options)
         {
-            DrawImageCore(image, fillPositionX: 0, fillPositionY: 0, orientation);
+            DrawImageCore(image, fillPositionX: 0, fillPositionY: 0, options);
             Flush();
         }
     }
