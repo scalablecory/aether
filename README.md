@@ -1,10 +1,12 @@
+<a href="http://www.youtube.com/watch?v=VsS-zbfhtrs"><img align="right" width="320" src="https://img.youtube.com/vi/VsS-zbfhtrs/0.jpg"></a>
+
 # Aether
 
-Aether is an air quality monitoring software and device, Open Source and powered by .NET 6.
+Aether is an air quality monitoring device and software, Open Source and powered by .NET 6.
 
 ## Features
 
-- At-a-glance air quality monitoring.
+- At-a-glance air quality monitoring with addressable RGB.
 - Small standalone device with a custom 3D-printed case.
 - No-solder plug-and-play hardware.
 
@@ -15,7 +17,7 @@ Aether is an air quality monitoring software and device, Open Source and powered
 - Monitor air quality over Bluetooth/WiFi via a .NET MAUI app.
 - (Optionally) Join a WiFi network for multi-room monitoring.
 - (Maybe) MQTT support.
-- (Maybe) LoRa / LoRaWAN support.
+- (Maybe) Zigbee / LoRa / LoRaWAN support.
 
 ## Contributing
 
