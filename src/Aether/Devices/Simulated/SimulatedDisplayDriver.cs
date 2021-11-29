@@ -18,7 +18,7 @@ namespace Aether.Devices.Simulated
         public override Image CreateImage(int width, int height) =>
             new Image<SixLabors.ImageSharp.PixelFormats.Rgb24>(width, height);
 
-        protected override void DisplayImageCore(Image image, DrawOrientation orientation)
+        protected override void DisplayImageCore(Image image, DrawOptions options)
         {
             int imageId = Interlocked.Increment(ref _counter);
             string filePath = string.Create(CultureInfo.InvariantCulture, $"image-{imageId}.png");

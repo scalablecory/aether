@@ -20,10 +20,10 @@ namespace Aether.Themes
         {
             // setup dimensions and common measurements.
 
-            (int imgWidth, int imgHeight, float dpiX, float dpiY, DrawOrientation drawOrientation) =
+            (int imgWidth, int imgHeight, float dpiX, float dpiY, DrawOptions drawOptions) =
                 (vertical && driver.Height >= driver.Width) || (!vertical && driver.Width >= driver.Height)
-                ? (driver.Width, driver.Height, driver.DpiX, driver.DpiY, DrawOrientation.Default)
-                : (driver.Height, driver.Width, driver.DpiY, driver.DpiX, DrawOrientation.Rotate90);
+                ? (driver.Width, driver.Height, driver.DpiX, driver.DpiY, DrawOptions.None)
+                : (driver.Height, driver.Width, driver.DpiY, driver.DpiX, DrawOptions.Rotate90);
 
             int outerMarginInPixelsX = (int)MathF.Ceiling(OuterMarginInInches * dpiX);
             int outerMarginInPixelsY = (int)MathF.Ceiling(OuterMarginInInches * dpiY);
@@ -149,12 +149,29 @@ namespace Aether.Themes
                 }
             });
 
-            driver.DisplayImage(image, drawOrientation);
+            driver.DisplayImage(image, drawOptions);
+
+            drawOptions |= DrawOptions.PartialRefresh;
 
             // wire up against the source.
             // TODO: abstract and localize stringy bits.
 
             var seen = new HashSet<Measure>();
+            Point location = default;
+            string text;
+
+            void Draw(IImageProcessingContext ctx)
+            {
+                ctx.Fill(Color.White, new RectangleF(
+                    location.X - measurementWidth,
+                    location.Y - lineHeight,
+                    measurementWidth,
+                    lineHeight
+                    ));
+
+                // TODO: it's possible super large values (PM2.5 seems to have this issue) will overwrite the labels.
+                ctx.DrawText(measurementDrawingOptions, text, measurementFont, Color.Black, location);
+            }
 
             return source.Gate().Subscribe(measurements =>
             {
@@ -164,14 +181,14 @@ namespace Aether.Themes
                 {
                     Measurement measurement = measurements[i];
                     
-                    if (!seen.Add(measurement.Measure) || !offsets.TryGetValue(measurement.Measure, out Point location))
+                    if (!seen.Add(measurement.Measure) || !offsets.TryGetValue(measurement.Measure, out location))
                     {
                         continue;
                     }
 
                     draw = true;
 
-                    string text = measurement.Measure switch
+                    text = measurement.Measure switch
                     {
                         Measure.Humidity => (measurement.RelativeHumidity.Value * (1.0 / 100.0)).ToString("P0"),
                         Measure.Temperature => measurement.Temperature.DegreesFahrenheit.ToString("N1"),
@@ -184,25 +201,14 @@ namespace Aether.Themes
                         _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")
                     };
 
-                    image.Mutate(ctx =>
-                    {
-                        ctx.Fill(Color.White, new RectangleF(
-                            location.X - measurementWidth,
-                            location.Y - lineHeight,
-                            measurementWidth,
-                            lineHeight
-                            ));
-
-                        // TODO: it's possible super large values (PM2.5 seems to have this issue) will overwrite the labels.
-                        ctx.DrawText(measurementDrawingOptions, text, measurementFont, Color.Black, location);
-                    });
+                    image.Mutate(Draw);
                 }
 
                 seen.Clear();
 
                 if (draw)
                 {
-                    driver.DisplayImage(image, drawOrientation);
+                    driver.DisplayImage(image, drawOptions);
                 }
             });
         }
