@@ -1,14 +1,12 @@
 ﻿using System.Device.Spi;
 using System.Runtime.InteropServices;
-using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.PixelFormats;
 
 namespace Aether.Devices.Drivers
 {
     /// <summary>
     /// A driver for SK9822 or APA102 addressable RGB LEDs.
     /// </summary>
-    public sealed class Sk9822 : BufferedDisplayDriver
+    public sealed class Sk9822 : AddressableRgbDriver, IDisposable
     {
         private readonly SpiDevice _device;
         private readonly byte[] _buffer;
@@ -27,7 +25,7 @@ namespace Aether.Devices.Drivers
         /// <param name="device">The SPI device to use.</param>
         /// <param name="pixelCount">The number of pixels.</param>
         public Sk9822(SpiDevice device, int pixelCount)
-            : base(width: pixelCount, height: 1, dpiX: 1.0f, dpiY: 1.0f)
+            : base(pixelCount)
         {
             if (device == null) throw new ArgumentNullException(nameof(device));
             if (pixelCount <= 0) throw new ArgumentOutOfRangeException(nameof(pixelCount), pixelCount, $"{nameof(pixelCount)} must be greater than 0.");
@@ -64,7 +62,7 @@ namespace Aether.Devices.Drivers
             Flush();
         }
 
-        public override void Dispose()
+        public void Dispose()
         {
             if (!_disposed)
             {
@@ -79,33 +77,23 @@ namespace Aether.Devices.Drivers
         /// <summary>
         /// Draws the current <see cref="Pixels"/> buffer to the device.
         /// </summary>
-        public override void Flush() =>
+        public void Flush() =>
             _device.Write(_buffer);
 
-        public override Image CreateImage(int width, int height) =>
-            new Image<Rgba32>(width, height);
-
-        protected override void DrawImageCore(Image srcImage, int fillPositionX, int fillPositionY, DrawOptions options)
+        public override void SetLeds(ReadOnlySpan<LedPixel> pixels)
         {
-            if (srcImage is not Image<Rgba32> img)
+            Span<Sk9822Pixel> dstPixels = Pixels.Slice(0, pixels.Length);
+
+            for (int i = 0; i < pixels.Length; ++i)
             {
-                throw new ArgumentException($"{nameof(srcImage)} is of an invalid type; {nameof(DisplayImage)} must be called with images created from {nameof(CreateImage)}.", nameof(srcImage));
-            }
+                LedPixel src = pixels[i];
 
-            if (!img.TryGetSinglePixelSpan(out Span<Rgba32> srcPixels))
-            {
-                throw new Exception("Expected contiguous buffer from ImageSharp.");
-            }
+                uint brightness = (uint)src.Brightness >> 3;
+                uint r = src.R;
+                uint g = src.G;
+                uint b = src.B;
 
-            int length = srcPixels.Length;
-
-            Span<Sk9822Pixel> dstPixels = Pixels.Slice(fillPositionX, length);
-
-            for (int i = 0; i < length; ++i)
-            {
-                Rgba32 src = srcPixels[i];
-
-                int total = src.R + src.G + src.B;
+                uint total = r + g + b;
                 if (total > 255)
                 {
                     // These LEDs are not sRGB. This is just me fudging with things...
@@ -114,13 +102,15 @@ namespace Aether.Devices.Drivers
                     // If total LED brightness would be over 255, normalize it down to 255.
                     // This seems to help with color uniformity without causing significant brightness shift.
 
-                    src.R = (byte)(src.R * 255 / total);
-                    src.G = (byte)(src.G * 255 / total);
-                    src.B = (byte)(src.B * 255 / total);
+                    r = r * 255 / total;
+                    g = g * 255 / total;
+                    b = b * 255 / total;
                 }
 
-                dstPixels[i] = new Sk9822Pixel(src.A >> 3, src.R, src.G, src.B);
+                dstPixels[i] = new Sk9822Pixel((byte)brightness, (byte)r, (byte)g, (byte)b);
             }
+
+            Flush();
         }
     }
 }
