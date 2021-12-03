@@ -46,6 +46,11 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
         spsDriver
         );
 
+    // Add a derived AQI.
+    measurements = Observable.Merge(
+        measurements,
+        ObservableAirQualityIndex.GetAirQualityIndex(measurements));
+
     // Initialize ePaper display.
     var spiConfig = new SpiConnectionSettings(0, 0)
     {
@@ -56,16 +61,16 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     using var displayDriver = new WaveshareEPD2_9inV2(displayDevice, gpio, dcPinId: 25, rstPinId: 17, busyPinId: 24);
 
     // Initialize ePaper theme, which takes all the measurements and renders them to a display.
-    var lines = new[] { Measure.CO2, Measure.VOC, Measure.PM1_0, Measure.PM2_5, Measure.PM4_0, Measure.PM10_0 };
+    var lines = new[] { Measure.CO2, Measure.AirQualityIndex, Measure.VOC, Measure.PM1_0, Measure.PM2_5, Measure.PM10_0 };
     using IDisposable ePaperTheme = MultiLineTheme.Run(displayDriver, lines, measurements, vertical: false);
 
     // Initialize RGB display.
     spiConfig = new SpiConnectionSettings(1)
     {
-        ClockFrequency = 10_000_000
+        ClockFrequency = 30_000_000
     };
     using SpiDevice rgbDevice = SpiDevice.Create(spiConfig);
-    using var rgbDriver = new Sk9822(rgbDevice, pixelCount: 29);
+    using var rgbDriver = new Sk9822(rgbDevice, pixelCount: 22);
 
     // Initialize RGB theme, which takes all the measurements and converts them to an RGB color for LEDs.
     using IDisposable rgbTheme = RgbTheme.Run(rgbDriver, measurements);
