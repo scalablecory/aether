@@ -1,6 +1,5 @@
-﻿using Aether.CustomUnits;
-using Aether.Devices.Drivers;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
+using Aether.CustomUnits;
 using UnitsNet;
 using UnitsNet.Units;
 
@@ -38,6 +37,9 @@ namespace Aether.Devices.Sensors
 
         public Length Length =>
             new Length(_value, (LengthUnit)_unit);
+
+        public AirQualityIndex AirQualityIndex =>
+            new AirQualityIndex(_value, (AirQualityIndexUnit)_unit);
 
         private Measurement(double value, int unit, Measure measure)
         {
@@ -91,6 +93,9 @@ namespace Aether.Devices.Sensors
         public static Measurement FromTypicalParticleSize(Length length) =>
             new Measurement(length.Value, (int)length.Unit, Measure.TypicalParticleSize);
 
+        public static Measurement FromAirQualityIndex(AirQualityIndex airQualityIndex) =>
+            new Measurement(airQualityIndex.Value, (int)airQualityIndex.Unit, Measure.AirQualityIndex);
+
         public override string ToString() => Measure switch
         {
             Measure.Humidity => RelativeHumidity.ToString(),
@@ -108,6 +113,7 @@ namespace Aether.Devices.Sensors
             Measure.P4_0 => NumberConcentration.ToString(),
             Measure.P10_0 => NumberConcentration.ToString(),
             Measure.TypicalParticleSize => Length.ToString(),
+            Measure.AirQualityIndex => AirQualityIndex.ToString(),
             _ => $"{{ Empty {nameof(Measurement)} }}"
         };
     }

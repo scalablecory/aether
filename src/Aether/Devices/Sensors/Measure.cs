@@ -76,6 +76,11 @@ namespace Aether.Devices.Sensors
         /// <summary>
         /// Corresponds to a <see cref="Length"/> of the typical size of particles.
         /// </summary>
-        TypicalParticleSize
+        TypicalParticleSize,
+
+        /// <summary>
+        /// An air quality index, derived from other measures.
+        /// </summary>
+        AirQualityIndex
     }
 }

@@ -1,24 +1,22 @@
 ﻿using System.Diagnostics;
 using System.Reactive.Linq;
-using System.Runtime.CompilerServices;
 using Aether.Devices.Drivers;
 using Aether.Devices.Sensors;
-using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.ColorSpaces;
 using SixLabors.ImageSharp.ColorSpaces.Conversion;
-using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.Processing;
 
 namespace Aether.Themes
 {
     internal sealed class RgbTheme
     {
         private const double FrameTimeInSeconds = 1.0 / 30.0;
-        private const double MaxAiqChangePerSecond = 1.0 / 10.0;
-        private const float BurstAnimationLengthInSeconds = 1.0f;
-        private const int BurstPixelCount = 1;
-        private const int BurstPixelStide = 1;
-        private const double BurstPixelMovementPerSecond = 15.0;
+        private const double MaxAqiChangePerSecond = 1.0 / 20.0;
+
+        private const double AlertAqiChangeThreshold = 0.2;
+        private const double AlertAnimationLengthInSeconds = 2.0;
+        private const int AlertPixelCount = 1;
+        private const int AlertPixelStide = 1;
+        private const double AlertPixelMovementPerSecond = 15.0;
 
         public static IDisposable Run(AddressableRgbDriver display, IObservable<Measurement> source)
         {
@@ -30,150 +28,115 @@ namespace Aether.Themes
             LinearRgb orange = colorConverter.ToLinearRgb(new Rgb(1.0f, 0.5f, 0.0f));
             LinearRgb red = colorConverter.ToLinearRgb(new Rgb(1.0f, 0.0f, 0.0f));
 
-            LedPixel[] pixels = new LedPixel[display.LedCount];
+            var pixels = new LedPixel[display.LedCount];
             double pixelCount = pixels.Length;
 
-            float prevAiq = 0.0f;
-            float fastCounter = 0.0f;
+            double prevAqi = 0.0f;
+            double alertCounter = 0.0f;
 
-            int prevBurstIdx = -1;
-            double burstIdxAcc = 0.0;
+            int prevFirstAlertPixelIdx = -1;
+            double firstAlertPixelIdxAcc = 0.0;
 
             LedPixel prevColor = default;
 
             long prevFrameTime = Stopwatch.GetTimestamp() - Stopwatch.Frequency;
             double frameTimeToSecondsScale = 1.0 / Stopwatch.Frequency;
 
-            var aiqObservable = source.Scan(
-                    (co2: 0.0f, voc: 0.0f, pm2_5: 0.0f, pm10: 0.0f, aiq: 0.0f),
-                    static (acc, measurement) =>
-                    {
-                        switch (measurement.Measure)
-                        {
-                            case Measure.CO2:
-                                const float co2Min = 600.0f;
-                                const float co2Max = 3000.0f;
+            // Normalize AQI to between 0..1.
+            IObservable<double> aqiObservable = source
+                .Where(x => x.Measure == Measure.AirQualityIndex)
+                .Select(x => Math.Min(x.AirQualityIndex.Value * (1.0 / 200.0), 1.0));
 
-                                acc.co2 = ((float)measurement.Co2.PartsPerMillion - co2Min) * (1.0f / (co2Max - co2Min));
-                                break;
-                            case Measure.VOC:
-                                const float vocMin = 100.0f;
-                                const float vocMax = 300.0f;
-
-                                acc.voc = ((float)measurement.Voc.Value - vocMin) * (1.0f / (vocMax - vocMin));
-                                break;
-                            case Measure.PM2_5:
-                                float pm2_5 = (float)measurement.MassConcentration.MicrogramsPerCubicMeter;
-                                acc.pm2_5 = pm2_5 switch
-                                {
-                                    <= 12.1f => ConstFindLerpDistance(1.0f, 4f, 0.0f, 12.1f, pm2_5),
-                                    <= 35.5f => ConstFindLerpDistance(2.0f, 4.0f, 12.1f, 35.5f, pm2_5),
-                                    <= 55.5f => ConstFindLerpDistance(3.0f, 4.0f, 35.5f, 55.5f, pm2_5),
-                                    _ => ConstFindLerpDistance(4.0f, 4.0f, 55.5f, 150.5f, pm2_5)
-                                };
-                                break;
-                            case Measure.PM10_0:
-                                float pm10 = (float)measurement.MassConcentration.MicrogramsPerCubicMeter;
-                                acc.pm10 = pm10 switch
-                                {
-                                    <= 55.0f => ConstFindLerpDistance(1.0f, 4f, 0.0f, 55.0f, pm10),
-                                    <= 155.0f => ConstFindLerpDistance(2.0f, 4.0f, 55.0f, 155.0f, pm10),
-                                    <= 255.0f => ConstFindLerpDistance(3.0f, 4.0f, 155.0f, 255.0f, pm10),
-                                    _ => ConstFindLerpDistance(4.0f, 4.0f, 255.0f, 355.0f, pm10)
-                                };
-                                break;
-                            default:
-                                return acc;
-                        }
-
-                        acc.aiq = Math.Clamp(Math.Max(Math.Max(acc.co2, acc.voc), Math.Max(acc.pm2_5, acc.pm10)), 0.0f, 1.0f);
-                        return acc;
-                    })
-                .Select(static x => x.aiq);
-
-            var timer = Observable.Interval(TimeSpan.FromSeconds(FrameTimeInSeconds));
-
-            return Observable.CombineLatest(timer, aiqObservable, (_, aiq) => aiq)
-                .Subscribe(nextAiq =>
+            return Observable.Interval(TimeSpan.FromSeconds(FrameTimeInSeconds))
+                .WithLatestFrom(aqiObservable, static (_, aqi) => aqi)
+                .Subscribe(nextAqi =>
                 {
+                    // Find how much time has passed since the last frame.
+
                     long curFrameTime = Stopwatch.GetTimestamp();
                     double stepTimeInSeconds = (curFrameTime - prevFrameTime) * frameTimeToSecondsScale;
                     prevFrameTime = curFrameTime;
 
-                    float maxAiqChange = (float)(MaxAiqChangePerSecond * stepTimeInSeconds);
-                    float aiqChange = nextAiq - prevAiq;
+                    // Find the next AQI to render.
+                    // To smooth rendering out a bit, only change up a certain amount per second.
 
-                    if (Math.Abs(aiqChange) > maxAiqChange)
+                    double maxAqiChange = MaxAqiChangePerSecond * stepTimeInSeconds;
+                    double actualAqiChange = nextAqi - prevAqi;
+
+                    nextAqi = prevAqi + Math.Clamp(actualAqiChange, -maxAqiChange, maxAqiChange);
+                    prevAqi = nextAqi;
+
+                    // Adjust the alert counter.
+
+                    alertCounter = actualAqiChange >= AlertAqiChangeThreshold
+                        // When the AQI changes very quickly by more than a certain threshold,
+                        // reset the alert counter.
+                        ? AlertAnimationLengthInSeconds
+                        // Otherwise, move the alert counter toward 0.
+                        : Math.Max(alertCounter - stepTimeInSeconds, 0.0);
+
+                    // Find the first pixel to be lit up by the alert.
+                    // This animates the pixels over time.
+
+                    int firstAlertPixelIdx;
+
+                    if (alertCounter > 0.0)
                     {
-                        float targetAiq = nextAiq;
-                        nextAiq = prevAiq + (aiqChange > 0.0f ? maxAiqChange : -maxAiqChange);
-
-                        if (Math.Abs(targetAiq - nextAiq) >= 0.1)
-                        {
-                            fastCounter = BurstAnimationLengthInSeconds;
-                        }
-                        else
-                        {
-                            fastCounter = Math.Max(fastCounter - (float)stepTimeInSeconds, 0.0f);
-                        }
+                        firstAlertPixelIdxAcc = (firstAlertPixelIdxAcc + stepTimeInSeconds * AlertPixelMovementPerSecond) % pixelCount;
+                        firstAlertPixelIdx = (int)firstAlertPixelIdxAcc;
                     }
                     else
                     {
-                        fastCounter = Math.Max(fastCounter - (float)stepTimeInSeconds, 0.0f);
+                        firstAlertPixelIdx = -1;
                     }
 
-                    prevAiq = nextAiq;
+                    // Translate the AQI to being an offset between two colors.
 
-                    (LinearRgb from, LinearRgb to, float offset) = nextAiq switch
+                    (LinearRgb from, LinearRgb to, double offset) = nextAqi switch
                     {
-                        < 0.25f => (blue, green, 0.0f),
-                        < 0.50f => (green, yellow, 1.0f),
-                        < 0.75f => (yellow, orange, 2.0f),
-                        _ => (orange, red, 3.0f)
+                        < 0.25 => (blue, green, 0.0),
+                        < 0.50 => (green, yellow, 1.0),
+                        < 0.75 => (yellow, orange, 2.0),
+                        _ => (orange, red, 3.0)
                     };
 
-                    float lerp = Math.Clamp(nextAiq * 4.0f - offset, 0.0f, 1.0f);
+                    // Find the color at that offset.
 
-                    float r = from.R + (to.R - from.R) * lerp;
-                    float g = from.G + (to.G - from.G) * lerp;
-                    float b = from.B + (to.B - from.B) * lerp;
+                    double lerp = Math.Clamp(nextAqi * 4.0 - offset, 0.0, 1.0);
+
+                    float r = (float)(from.R + (to.R - from.R) * lerp);
+                    float g = (float)(from.G + (to.G - from.G) * lerp);
+                    float b = (float)(from.B + (to.B - from.B) * lerp);
 
                     Rgb rgb = colorConverter.ToRgb(new LinearRgb(r, g, b));
+
+                    // And convert the sRGB color to a pixel color.
 
                     byte ri = (byte)Convert.ToInt32(Math.Clamp(rgb.R * 255.0f, 0.0f, 255.0f));
                     byte gi = (byte)Convert.ToInt32(Math.Clamp(rgb.G * 255.0f, 0.0f, 255.0f));
                     byte bi = (byte)Convert.ToInt32(Math.Clamp(rgb.B * 255.0f, 0.0f, 255.0f));
 
                     var color = new LedPixel(Brightness: 16, ri, gi, bi);
-                    int burstIdx;
 
-                    if (fastCounter > 0.0f)
-                    {
-                        burstIdxAcc += stepTimeInSeconds * BurstPixelMovementPerSecond;
-                        while (burstIdxAcc >= pixelCount)
-                        {
-                            burstIdxAcc -= pixelCount;
-                        }
-                        burstIdx = (int)burstIdxAcc;
-                    }
-                    else
-                    {
-                        burstIdx = -1;
-                    }
+                    // Update LEDs, if there's a change.
 
-                    if (color != prevColor || burstIdx != prevBurstIdx)
+                    if (color != prevColor || firstAlertPixelIdx != prevFirstAlertPixelIdx)
                     {
                         prevColor = color;
-                        prevBurstIdx = burstIdx;
+                        prevFirstAlertPixelIdx = firstAlertPixelIdx;
+
+                        // The entire string gets a base pixel color.
 
                         pixels.AsSpan().Fill(color);
 
-                        if (burstIdx != -1)
+                        // And then if an alert is happening, some are updated to be brighter.
+
+                        if (firstAlertPixelIdx != -1)
                         {
                             LedPixel brightColor = color with { Brightness = 255 };
-                            int idx = burstIdx;
+                            int idx = firstAlertPixelIdx;
 
-                            for (int i = 0; i < BurstPixelCount; ++i)
+                            for (int i = 0; i < AlertPixelCount; ++i)
                             {
                                 while (idx >= pixels.Length)
                                 {
@@ -181,29 +144,15 @@ namespace Aether.Themes
                                 }
 
                                 pixels[idx] = brightColor;
-                                idx += BurstPixelStide;
+                                idx += AlertPixelStide;
                             }
                         }
+
+                        // And finally display the pixel buffer.
 
                         display.SetLeds(pixels);
                     }
                 });
-        }
-
-        /// <summary>
-        /// Takes a value <paramref name="min"/> &lt;= <paramref name="x"/> &lt;= <paramref name="max"/>, finds its normalized distance  between the two (e.g. 5 &lt;= 10 &lt;= 15 will result in 0.5.
-        /// Then, it adjusts the value to be part of a multi-step e.g. 1.0 with step 1/2 will result in 0.5.
-        /// </summary>
-        /// <param name="stepNo">The current step, starting at 1.</param>
-        /// <param name="stepCount">The total step count.</param>
-        /// <param name="min">The minimum value of this step.</param>
-        /// <param name="max">The maximum value of this step.</param>
-        /// <param name="x">The value.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static float ConstFindLerpDistance(float stepNo, float stepCount, float min, float max, float x)
-        {
-            // This all folds down into two operations (x * y + z).
-            return x * (1.0f / (max - min) / stepCount) + (((stepNo - 1.0f) / stepCount) - min / (max - min) / stepCount);
         }
     }
 }
