@@ -108,17 +108,11 @@ namespace Aether.Themes
                     float g = (float)(from.G + (to.G - from.G) * lerp);
                     float b = (float)(from.B + (to.B - from.B) * lerp);
 
-                    Rgb rgb = colorConverter.ToRgb(new LinearRgb(r, g, b));
-
-                    // And convert the sRGB color to a pixel color.
-
-                    byte ri = (byte)Convert.ToInt32(Math.Clamp(rgb.R * 255.0f, 0.0f, 255.0f));
-                    byte gi = (byte)Convert.ToInt32(Math.Clamp(rgb.G * 255.0f, 0.0f, 255.0f));
-                    byte bi = (byte)Convert.ToInt32(Math.Clamp(rgb.B * 255.0f, 0.0f, 255.0f));
-
-                    var color = new LedPixel(Brightness: 16, ri, gi, bi);
+                    var rgb = new LinearRgb(r, g, b);
 
                     // Update LEDs, if there's a change.
+
+                    LedPixel color = display.CreatePixelColor(rgb, brightness: 0.05f);
 
                     if (color != prevColor || firstAlertPixelIdx != prevFirstAlertPixelIdx)
                     {
@@ -133,7 +127,7 @@ namespace Aether.Themes
 
                         if (firstAlertPixelIdx != -1)
                         {
-                            LedPixel brightColor = color with { Brightness = 255 };
+                            LedPixel brightColor = display.CreatePixelColor(rgb, brightness: 1.0f);
                             int idx = firstAlertPixelIdx;
 
                             for (int i = 0; i < AlertPixelCount; ++i)
