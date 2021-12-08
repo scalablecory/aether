@@ -1,5 +1,7 @@
 ﻿using System.Device.Spi;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using SixLabors.ImageSharp.ColorSpaces;
 
 namespace Aether.Devices.Drivers
 {
@@ -80,34 +82,32 @@ namespace Aether.Devices.Drivers
         public void Flush() =>
             _device.Write(_buffer);
 
+        public override LedPixel CreatePixelColor(in LinearRgb rgb, float brightness)
+        {
+            // Color correction taken from FastLED.
+            // Without this, the G/R channels are too strong.
+            // https://github.com/FastLED/FastLED
+
+            byte a = ToByte(brightness, 33.0f, 32.0f);
+            byte r = ToByte(rgb.R, 256.0f, 255.0f);
+            byte g = ToByte(rgb.G, 256.0f * 0.69f, 255.0f);
+            byte b = ToByte(rgb.B, 256.0f * 0.94f, 255.0f);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            static byte ToByte(float x, float scale, float max) =>
+                (byte)Math.Clamp(x * scale, 0.0f, max);
+
+            return new LedPixel(a, r, g, b);
+        }
+
         public override void SetLeds(ReadOnlySpan<LedPixel> pixels)
         {
             Span<Sk9822Pixel> dstPixels = Pixels.Slice(0, pixels.Length);
 
             for (int i = 0; i < pixels.Length; ++i)
             {
-                LedPixel src = pixels[i];
-
-                uint brightness = (uint)src.Brightness >> 3;
-                uint r = src.R;
-                uint g = src.G;
-                uint b = src.B;
-
-                uint total = r + g + b;
-                if (total > 255)
-                {
-                    // These LEDs are not sRGB. This is just me fudging with things...
-                    // They really need proper calibration.
-
-                    // If total LED brightness would be over 255, normalize it down to 255.
-                    // This seems to help with color uniformity without causing significant brightness shift.
-
-                    r = r * 255 / total;
-                    g = g * 255 / total;
-                    b = b * 255 / total;
-                }
-
-                dstPixels[i] = new Sk9822Pixel((byte)brightness, (byte)r, (byte)g, (byte)b);
+                ref readonly LedPixel src = ref pixels[i];
+                dstPixels[i] = new Sk9822Pixel(src.Brightness, src.R, src.G, src.B);
             }
 
             Flush();
