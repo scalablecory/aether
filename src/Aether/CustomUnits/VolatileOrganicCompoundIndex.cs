@@ -1,4 +1,6 @@
-﻿using UnitsNet;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
+using UnitsNet;
 
 namespace Aether.CustomUnits
 {
@@ -7,54 +9,114 @@ namespace Aether.CustomUnits
         IndexValue
     }
 
-    public struct VolatileOrganicCompoundIndex : IQuantity
+    public readonly struct VolatileOrganicCompoundIndex : IQuantity<VolatileOrganicCompoundIndexUnit>, IEquatable<VolatileOrganicCompoundIndex>
     {
+        public static VolatileOrganicCompoundIndex Zero => new VolatileOrganicCompoundIndex(0);
+
+        public static QuantityInfo<VolatileOrganicCompoundIndexUnit> Info { get; } = new QuantityInfo<VolatileOrganicCompoundIndexUnit>(
+            nameof(VolatileOrganicCompoundIndex),
+            new UnitInfo<VolatileOrganicCompoundIndexUnit>[]
+            {
+                new (VolatileOrganicCompoundIndexUnit.IndexValue, BaseUnits.Undefined)
+            },
+            VolatileOrganicCompoundIndexUnit.IndexValue,
+            Zero,
+            BaseDimensions.Dimensionless);
+
+        public VolatileOrganicCompoundIndexUnit Unit { get; }
+
+        Enum IQuantity.Unit =>
+            Unit;
+
+        public double Value { get; }
+
+        public QuantityType Type =>
+            QuantityType.Information;
+
+        public BaseDimensions Dimensions =>
+            BaseDimensions.Dimensionless;
+
+        public QuantityInfo<VolatileOrganicCompoundIndexUnit> QuantityInfo =>
+            Info;
+
+        QuantityInfo IQuantity.QuantityInfo =>
+            QuantityInfo;
+
+        static VolatileOrganicCompoundIndex()
+        {
+            UnitAbbreviationsCache.Default.MapUnitToAbbreviation(VolatileOrganicCompoundIndexUnit.IndexValue, "VOC Idx");
+        }
+
         public VolatileOrganicCompoundIndex(double value, VolatileOrganicCompoundIndexUnit unit = VolatileOrganicCompoundIndexUnit.IndexValue)
         {
             Unit = unit;
             Value = value;
         }
 
-        Enum IQuantity.Unit => Unit;
-        public VolatileOrganicCompoundIndexUnit Unit { get; }
+        public double As(VolatileOrganicCompoundIndexUnit unit) =>
+            unit == VolatileOrganicCompoundIndexUnit.IndexValue
+            ? Value
+            : throw new NotImplementedException($"Can not convert {Unit} to {unit}.");
 
-        public double Value { get; }
+        double IQuantity.As(Enum unit) =>
+            unit is VolatileOrganicCompoundIndexUnit voc
+            ? As(voc)
+            : throw new ArgumentException($"The given unit is of type {unit.GetType()}. Only {typeof(VolatileOrganicCompoundIndexUnit)} is supported.", nameof(unit));
 
-        #region IQuantity
+        public double As(UnitSystem unitSystem) =>
+            Info.GetUnitInfosFor(unitSystem.BaseUnits).FirstOrDefault() is UnitInfo<VolatileOrganicCompoundIndexUnit> info
+            ? As(info.Value)
+            : throw new ArgumentException($"No units were found for the given {nameof(UnitSystem)}.", nameof(unitSystem));
 
-        private static readonly VolatileOrganicCompoundIndex Zero = new VolatileOrganicCompoundIndex(0, VolatileOrganicCompoundIndexUnit.IndexValue);
+        public VolatileOrganicCompoundIndex ToUnit(VolatileOrganicCompoundIndexUnit unit) =>
+            unit == VolatileOrganicCompoundIndexUnit.IndexValue
+            ? this
+            : throw new NotImplementedException($"Can not convert {Unit} to {unit}.");
 
-        public QuantityType Type => QuantityType.Information;
-        public BaseDimensions Dimensions => BaseDimensions.Dimensionless;
+        IQuantity<VolatileOrganicCompoundIndexUnit> IQuantity<VolatileOrganicCompoundIndexUnit>.ToUnit(VolatileOrganicCompoundIndexUnit unit) =>
+            ToUnit(unit);
 
-        public QuantityInfo QuantityInfo => new QuantityInfo("IndexUnit", typeof(VolatileOrganicCompoundIndexUnit),
-            new UnitInfo[]
-            {
-                new UnitInfo<VolatileOrganicCompoundIndexUnit>(VolatileOrganicCompoundIndexUnit.IndexValue, BaseUnits.Undefined)
-            },
-            VolatileOrganicCompoundIndexUnit.IndexValue,
-            Zero,
-            BaseDimensions.Dimensionless);
+        IQuantity IQuantity.ToUnit(Enum unit) =>
+            unit is VolatileOrganicCompoundIndexUnit vocIndexUnit
+            ? ToUnit(vocIndexUnit)
+            : throw new ArgumentException($"Must be of type {nameof(VolatileOrganicCompoundIndexUnit)}.", nameof(unit));
 
-        public double As(Enum unit) => Convert.ToDouble(unit);
+        public VolatileOrganicCompoundIndex ToUnit(UnitSystem unitSystem) =>
+            Info.GetUnitInfosFor(unitSystem.BaseUnits).FirstOrDefault() is UnitInfo<VolatileOrganicCompoundIndexUnit> info
+            ? ToUnit(info.Value)
+            : throw new ArgumentException($"No units were found for the given {nameof(UnitSystem)}.", nameof(unitSystem));
 
-        public double As(UnitSystem unitSystem) => throw new NotImplementedException();
+        IQuantity<VolatileOrganicCompoundIndexUnit> IQuantity<VolatileOrganicCompoundIndexUnit>.ToUnit(UnitSystem unitSystem) =>
+            ToUnit(unitSystem);
 
-        public IQuantity ToUnit(Enum unit)
+        IQuantity IQuantity.ToUnit(UnitSystem unitSystem) =>
+            ToUnit(unitSystem);
+
+        public string ToString(string? format, IFormatProvider? formatProvider) =>
+            QuantityFormatter.Format(this, format ?? "g", formatProvider);
+
+        public override string ToString() =>
+            ToString(null, null);
+
+        public string ToString(IFormatProvider? provider) =>
+            ToString(null, provider);
+
+        string IQuantity.ToString(IFormatProvider? provider, int significantDigitsAfterRadix)
         {
-            if (unit is VolatileOrganicCompoundIndexUnit vocIndexUnit)
-                return new VolatileOrganicCompoundIndex(As(unit), vocIndexUnit);
-            throw new ArgumentException("Must be of type VolatileOrganicCompoundIndexUnit.", nameof(unit));
+            string format = string.Create(CultureInfo.InvariantCulture, $"s{significantDigitsAfterRadix}");
+            return ToString(format, provider);
         }
 
-        public IQuantity ToUnit(UnitSystem unitSystem) => throw new NotImplementedException();
+        string IQuantity.ToString(IFormatProvider? provider, string format, params object[] args) =>
+            throw new NotImplementedException();
 
-        public override string ToString() => $"Volatile Organic Compound Index Value: {Value}";
-        public string ToString(string? format, IFormatProvider? formatProvider) => $"Volatile Organic Compound Index ({format}, {formatProvider})";
-        public string ToString(IFormatProvider? provider) => $"Volatile Organic Compound Index ({provider})";
-        public string ToString(IFormatProvider? provider, int significantDigitsAfterRadix) => $"Volatile Organic Compound Index ({provider}, {significantDigitsAfterRadix})";
-        public string ToString(IFormatProvider? provider, string format, params object[] args) => $"Volatile Organic Compound Index ({provider}, {string.Join(", ", args)})";
+        public bool Equals(VolatileOrganicCompoundIndex other) =>
+            other.As(Unit).Equals(Value);
 
-        #endregion
+        public override bool Equals([NotNullWhen(true)] object? obj) =>
+            obj is VolatileOrganicCompoundIndex other && Equals(other);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(Info.Name, Value, Unit);
     }
 }
