@@ -157,6 +157,7 @@ namespace Aether.Themes
             // TODO: abstract and localize stringy bits.
 
             var seen = new HashSet<Measure>();
+            var previousValues = new Dictionary<Measure, string>();
             Point location = default;
             string text;
 
@@ -186,21 +187,28 @@ namespace Aether.Themes
                         continue;
                     }
 
-                    draw = true;
-
                     text = measurement.Measure switch
                     {
                         Measure.Humidity => (measurement.RelativeHumidity.Value * (1.0 / 100.0)).ToString("P0"),
                         Measure.Temperature => measurement.Temperature.DegreesFahrenheit.ToString("N1"),
                         Measure.CO2 => measurement.Co2.PartsPerMillion.ToString("N0"),
                         Measure.BarometricPressure => measurement.BarometricPressure.Atmospheres.ToString("N2"),
-                        Measure.VOC => measurement.Voc.Value.ToString(),
+                        Measure.VOC => measurement.Voc.Value.ToString("N0"),
                         Measure.PM1_0 or Measure.PM2_5 or Measure.PM4_0 or Measure.PM10_0 => measurement.MassConcentration.MicrogramsPerCubicMeter.ToString("N0"),
-                        Measure.P1_0 or Measure.P2_5 or Measure.P4_0 or Measure.P10_0 => measurement.NumberConcentration.Value.ToString("N0"),
+                        Measure.P0_5 or Measure.P1_0 or Measure.P2_5 or Measure.P4_0 or Measure.P10_0 => measurement.NumberConcentration.Value.ToString("N0"),
                         Measure.TypicalParticleSize => measurement.Length.Micrometers.ToString("N1"),
                         Measure.AirQualityIndex => measurement.AirQualityIndex.Value.ToString("N0"),
                         _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")
                     };
+
+                    if (previousValues.TryGetValue(measurement.Measure, out string? prevText) && prevText == text)
+                    {
+                        continue;
+                    }
+
+                    previousValues[measurement.Measure] = text;
+
+                    draw = true;
 
                     image.Mutate(Draw);
                 }
