@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using UnitsNet;
 
 namespace Aether.CustomUnits
@@ -12,54 +9,114 @@ namespace Aether.CustomUnits
         ParticulatePerCubicCentimeter
     }
 
-    public struct NumberConcentration : IQuantity
+    public readonly struct NumberConcentration : IQuantity<NumberConcentrationUnit>, IEquatable<NumberConcentration>
     {
+        public static NumberConcentration Zero => new NumberConcentration(0);
+
+        public static QuantityInfo<NumberConcentrationUnit> Info { get; } = new QuantityInfo<NumberConcentrationUnit>(
+            nameof(NumberConcentration),
+            new UnitInfo<NumberConcentrationUnit>[]
+            {
+                new (NumberConcentrationUnit.ParticulatePerCubicCentimeter, BaseUnits.Undefined)
+            },
+            NumberConcentrationUnit.ParticulatePerCubicCentimeter,
+            Zero,
+            BaseDimensions.Dimensionless);
+
+        public NumberConcentrationUnit Unit { get; }
+
+        Enum IQuantity.Unit =>
+            Unit;
+
+        public double Value { get; }
+
+        public QuantityType Type =>
+            QuantityType.Information;
+
+        public BaseDimensions Dimensions =>
+            BaseDimensions.Dimensionless;
+
+        public QuantityInfo<NumberConcentrationUnit> QuantityInfo =>
+            Info;
+
+        QuantityInfo IQuantity.QuantityInfo =>
+            QuantityInfo;
+
+        static NumberConcentration()
+        {
+            UnitAbbreviationsCache.Default.MapUnitToAbbreviation(NumberConcentrationUnit.ParticulatePerCubicCentimeter, "per cm³");
+        }
+
         public NumberConcentration(double value, NumberConcentrationUnit unit = NumberConcentrationUnit.ParticulatePerCubicCentimeter)
         {
             Unit = unit;
             Value = value;
         }
 
-        Enum IQuantity.Unit => Unit;
-        public NumberConcentrationUnit Unit { get; }
+        public double As(NumberConcentrationUnit unit) =>
+            unit == NumberConcentrationUnit.ParticulatePerCubicCentimeter
+            ? Value
+            : throw new NotImplementedException($"Can not convert {Unit} to {unit}.");
 
-        public double Value { get; }
+        double IQuantity.As(Enum unit) =>
+            unit is NumberConcentrationUnit nc
+            ? As(nc)
+            : throw new ArgumentException($"The given unit is of type {unit.GetType()}. Only {typeof(NumberConcentrationUnit)} is supported.", nameof(unit));
 
-        #region IQuantity
+        public double As(UnitSystem unitSystem) =>
+            Info.GetUnitInfosFor(unitSystem.BaseUnits).FirstOrDefault() is UnitInfo<NumberConcentrationUnit> info
+            ? As(info.Value)
+            : throw new ArgumentException($"No units were found for the given {nameof(UnitSystem)}.", nameof(unitSystem));
 
-        private static readonly NumberConcentration Zero = new NumberConcentration(0, NumberConcentrationUnit.ParticulatePerCubicCentimeter);
+        public NumberConcentration ToUnit(NumberConcentrationUnit unit) =>
+            unit == NumberConcentrationUnit.ParticulatePerCubicCentimeter
+            ? this
+            : throw new NotImplementedException($"Can not convert {Unit} to {unit}.");
 
-        public QuantityType Type => QuantityType.Information;
-        public BaseDimensions Dimensions => BaseDimensions.Dimensionless;
+        IQuantity<NumberConcentrationUnit> IQuantity<NumberConcentrationUnit>.ToUnit(NumberConcentrationUnit unit) =>
+            ToUnit(unit);
 
-        public QuantityInfo QuantityInfo => new QuantityInfo("NumberConcentrationUnit", typeof(NumberConcentrationUnit),
-            new UnitInfo[]
-            {
-                new UnitInfo<NumberConcentrationUnit>(NumberConcentrationUnit.ParticulatePerCubicCentimeter, BaseUnits.Undefined)
-            },
-            NumberConcentrationUnit.ParticulatePerCubicCentimeter,
-            Zero,
-            BaseDimensions.Dimensionless);
+        IQuantity IQuantity.ToUnit(Enum unit) =>
+            unit is NumberConcentrationUnit nc
+            ? ToUnit(nc)
+            : throw new ArgumentException($"Must be of type {nameof(NumberConcentrationUnit)}.", nameof(unit));
 
-        public double As(Enum unit) => Convert.ToDouble(unit);
+        public NumberConcentration ToUnit(UnitSystem unitSystem) =>
+            Info.GetUnitInfosFor(unitSystem.BaseUnits).FirstOrDefault() is UnitInfo<NumberConcentrationUnit> info
+            ? ToUnit(info.Value)
+            : throw new ArgumentException($"No units were found for the given {nameof(UnitSystem)}.", nameof(unitSystem));
 
-        public double As(UnitSystem unitSystem) => throw new NotImplementedException();
+        IQuantity<NumberConcentrationUnit> IQuantity<NumberConcentrationUnit>.ToUnit(UnitSystem unitSystem) =>
+            ToUnit(unitSystem);
 
-        public IQuantity ToUnit(Enum unit)
+        IQuantity IQuantity.ToUnit(UnitSystem unitSystem) =>
+            ToUnit(unitSystem);
+
+        public string ToString(string? format, IFormatProvider? formatProvider) =>
+            QuantityFormatter.Format(this, format ?? "g", formatProvider);
+
+        public override string ToString() =>
+            ToString(null, null);
+
+        public string ToString(IFormatProvider? provider) =>
+            ToString(null, provider);
+
+        string IQuantity.ToString(IFormatProvider? provider, int significantDigitsAfterRadix)
         {
-            if (unit is NumberConcentrationUnit numberConcentrationUnit)
-                return new NumberConcentration(As(unit), numberConcentrationUnit);
-            throw new ArgumentException("Must be of type NumberConcentrationUnit.", nameof(unit));
+            string format = string.Create(CultureInfo.InvariantCulture, $"s{significantDigitsAfterRadix}");
+            return ToString(format, provider);
         }
 
-        public IQuantity ToUnit(UnitSystem unitSystem) => throw new NotImplementedException();
+        string IQuantity.ToString(IFormatProvider? provider, string format, params object[] args) =>
+            throw new NotImplementedException();
 
-        public override string ToString() => $"{string.Format("{0:0.00}", Value)}/cm³";
-        public string ToString(string? format, IFormatProvider? formatProvider) => $"Number Concentration ({format}, {formatProvider})";
-        public string ToString(IFormatProvider? provider) => $"Number Concentration ({provider})";
-        public string ToString(IFormatProvider? provider, int significantDigitsAfterRadix) => $"Number Concentration ({provider}, {significantDigitsAfterRadix})";
-        public string ToString(IFormatProvider? provider, string format, params object[] args) => $"Number Concentration ({provider}, {string.Join(", ", args)})";
+        public bool Equals(NumberConcentration other) =>
+            other.As(Unit).Equals(Value);
 
-        #endregion
+        public override bool Equals([NotNullWhen(true)] object? obj) =>
+            obj is NumberConcentration other && Equals(other);
+
+        public override int GetHashCode() =>
+            HashCode.Combine(Info.Name, Value, Unit);
     }
 }
