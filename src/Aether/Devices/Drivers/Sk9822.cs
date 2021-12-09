@@ -88,7 +88,7 @@ namespace Aether.Devices.Drivers
             // Without this, the G/R channels are too strong.
             // https://github.com/FastLED/FastLED
 
-            byte a = ToByte(brightness, 33.0f, 32.0f);
+            byte a = ToByte(brightness, 32.0f, 31.0f);
             byte r = ToByte(rgb.R, 256.0f, 255.0f);
             byte g = ToByte(rgb.G, 256.0f * 0.69f, 255.0f);
             byte b = ToByte(rgb.B, 256.0f * 0.94f, 255.0f);
