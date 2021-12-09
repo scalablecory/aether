@@ -233,6 +233,7 @@ namespace Aether.Themes
             Measure.PM2_5 => "PM₂.₅\nμg/m³",
             Measure.PM4_0 => "PM₄.₀\nμg/m³",
             Measure.PM10_0 => "PM₁₀.₀\nμg/m³",
+            Measure.P0_5 => "PM₀.₅\n#/cm³",
             Measure.P1_0 => "PM₁.₀\n#/cm³",
             Measure.P2_5 => "PM₂.₅\n#/cm³",
             Measure.P4_0 => "PM₄.₀\n#/cm³",
