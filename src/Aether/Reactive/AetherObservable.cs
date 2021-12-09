@@ -64,7 +64,10 @@ namespace Aether.Reactive
         public static IObservable<IList<T>> Gate<T>(this IObservable<T> observable) =>
             Observable.Create(async (IObserver<IList<T>> observer, CancellationToken cancellationToken) =>
             {
-                Channel<T> channel = Channel.CreateUnbounded<T>();
+                Channel<T> channel = Channel.CreateUnbounded<T>(new UnboundedChannelOptions
+                {
+                    SingleReader = true
+                });
 
                 using CancellationTokenRegistration reg = cancellationToken.UnsafeRegister(static obj => ((ChannelWriter<T>)obj!).TryComplete(), channel.Writer);
 

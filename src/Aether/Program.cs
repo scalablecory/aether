@@ -51,6 +51,9 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
         measurements,
         ObservableAirQualityIndex.GetAirQualityIndex(measurements));
 
+    // Ref count measurements, which will be used in a few places.
+    measurements = measurements.Publish().RefCount();
+
     // Initialize ePaper display.
     var spiConfig = new SpiConnectionSettings(0, 0)
     {
