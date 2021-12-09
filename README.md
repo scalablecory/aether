@@ -1,8 +1,10 @@
-<a href="http://www.youtube.com/watch?v=VsS-zbfhtrs"><img align="right" width="320" src="https://img.youtube.com/vi/VsS-zbfhtrs/0.jpg"></a>
-
 # Aether
 
+<a href="http://www.youtube.com/watch?v=VsS-zbfhtrs"><img align="right" width="320" src="https://img.youtube.com/vi/VsS-zbfhtrs/0.jpg"></a>
+
 Aether is an air quality monitoring device and software, Open Source and powered by .NET 6.
+
+Want to make your own? Check out the no-soldering-required [Hackathon 2021 build](builds/Hackathon%202021.md), pictured to the right.
 
 ## Features
 
