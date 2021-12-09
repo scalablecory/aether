@@ -17,7 +17,7 @@ namespace Aether.CustomUnits
             nameof(VolatileOrganicCompoundIndex),
             new UnitInfo<VolatileOrganicCompoundIndexUnit>[]
             {
-                new (VolatileOrganicCompoundIndexUnit.IndexValue, BaseUnits.Undefined)
+                new (VolatileOrganicCompoundIndexUnit.IndexValue, "VocIndex", BaseUnits.Undefined)
             },
             VolatileOrganicCompoundIndexUnit.IndexValue,
             Zero,
