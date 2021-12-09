@@ -17,7 +17,7 @@ namespace Aether.CustomUnits
             nameof(NumberConcentration),
             new UnitInfo<NumberConcentrationUnit>[]
             {
-                new (NumberConcentrationUnit.ParticulatePerCubicCentimeter, BaseUnits.Undefined)
+                new (NumberConcentrationUnit.ParticulatePerCubicCentimeter, "NumberConcentration", BaseUnits.Undefined)
             },
             NumberConcentrationUnit.ParticulatePerCubicCentimeter,
             Zero,

@@ -17,7 +17,7 @@ namespace Aether.CustomUnits
             nameof(AirQualityIndex),
             new UnitInfo<AirQualityIndexUnit>[]
             {
-                new (AirQualityIndexUnit.EPA, BaseUnits.Undefined)
+                new (AirQualityIndexUnit.EPA, "EPA AIQ", BaseUnits.Undefined)
             },
             AirQualityIndexUnit.EPA,
             Zero,
