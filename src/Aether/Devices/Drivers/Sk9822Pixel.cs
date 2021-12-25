@@ -1,4 +1,6 @@
-﻿using System.Runtime.InteropServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using SixLabors.ImageSharp.ColorSpaces;
 
 namespace Aether.Devices.Drivers
 {
@@ -12,7 +14,7 @@ namespace Aether.Devices.Drivers
     /// <code>0b111x_xxxx</code>
     /// </summary>
     [StructLayout(LayoutKind.Sequential)]
-    public struct Sk9822Pixel
+    public struct Sk9822Pixel : IRgbPixelFactory<Sk9822Pixel>
     {
         private const int BrightnessMask = 0b1110_0000;
         private const uint MaxBrightness = ~(uint)BrightnessMask;
@@ -21,30 +23,6 @@ namespace Aether.Devices.Drivers
         private byte _b;
         private byte _g;
         private byte _r;
-
-        /// <summary>
-        /// Initializes a new <see cref="Sk9822Pixel"/>.
-        /// </summary>
-        /// <param name="brightness">The global brightness of the pixel. Must be between 0 and 31.</param>
-        /// <param name="r">The brightness of the red component of the pixel.</param>
-        /// <param name="g">The brightness of the green component of the pixel.</param>
-        /// <param name="b">The brightness of the blue component of the pixel.</param>
-        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="brightness"/> is not between 0 and 31.</exception>
-        public Sk9822Pixel(int brightness, byte r, byte g, byte b)
-        {
-            if ((uint)brightness > MaxBrightness)
-            {
-                ThrowArgumentOutOfRange(brightness);
-
-                static void ThrowArgumentOutOfRange(int brightness) =>
-                    throw new ArgumentOutOfRangeException(nameof(brightness), brightness, $"{nameof(brightness)} must be between 0 and {MaxBrightness}.");
-            }
-
-            _a = (byte)(brightness | BrightnessMask);
-            _b = b;
-            _g = g;
-            _r = r;
-        }
 
         /// <summary>
         /// The global brightness of the pixel. Must be between 0 and 31.
@@ -91,6 +69,48 @@ namespace Aether.Devices.Drivers
         {
             readonly get => _b;
             set => _b = value;
+        }
+
+        /// <summary>
+        /// Initializes a new <see cref="Sk9822Pixel"/>.
+        /// </summary>
+        /// <param name="brightness">The global brightness of the pixel. Must be between 0 and 31.</param>
+        /// <param name="r">The brightness of the red component of the pixel.</param>
+        /// <param name="g">The brightness of the green component of the pixel.</param>
+        /// <param name="b">The brightness of the blue component of the pixel.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Thrown when <paramref name="brightness"/> is not between 0 and 31.</exception>
+        public Sk9822Pixel(int brightness, byte r, byte g, byte b)
+        {
+            if ((uint)brightness > MaxBrightness)
+            {
+                ThrowArgumentOutOfRange(brightness);
+
+                static void ThrowArgumentOutOfRange(int brightness) =>
+                    throw new ArgumentOutOfRangeException(nameof(brightness), brightness, $"{nameof(brightness)} must be between 0 and {MaxBrightness}.");
+            }
+
+            _a = (byte)(brightness | BrightnessMask);
+            _b = b;
+            _g = g;
+            _r = r;
+        }
+
+        public static Sk9822Pixel Create(LinearRgb rgb, float brightness)
+        {
+            // Color correction taken from FastLED.
+            // Without this, the G/B channels are too strong.
+            // https://github.com/FastLED/FastLED
+
+            byte a = ToByte(brightness, 32.0f, 31.0f);
+            byte r = ToByte(rgb.R, 256.0f, 255.0f);
+            byte g = ToByte(rgb.G, 256.0f * 0.69f, 255.0f);
+            byte b = ToByte(rgb.B, 256.0f * 0.94f, 255.0f);
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            static byte ToByte(float x, float scale, float max) =>
+                (byte)Math.Clamp(x * scale, 0.0f, max);
+
+            return new Sk9822Pixel(a, r, g, b);
         }
     }
 }

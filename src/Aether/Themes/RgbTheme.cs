@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using System.Reactive.Linq;
+using System.Runtime.InteropServices;
 using Aether.Devices.Drivers;
 using Aether.Devices.Sensors;
 using SixLabors.ImageSharp.ColorSpaces;
@@ -7,7 +8,7 @@ using SixLabors.ImageSharp.ColorSpaces.Conversion;
 
 namespace Aether.Themes
 {
-    internal sealed class RgbTheme
+    internal static class RgbTheme
     {
         private const double FrameTimeInSeconds = 1.0 / 30.0;
         private const double MaxAqiChangePerSecond = 1.0 / 20.0;
@@ -34,13 +35,12 @@ namespace Aether.Themes
             double prevAqi = 0.0f;
             double alertCounter = 0.0f;
 
-            int prevFirstAlertPixelIdx = -1;
             double firstAlertPixelIdxAcc = 0.0;
-
-            LedPixel prevColor = default;
 
             long prevFrameTime = Stopwatch.GetTimestamp() - Stopwatch.Frequency;
             double frameTimeToSecondsScale = 1.0 / Stopwatch.Frequency;
+
+            var rendererState = new RendererState();
 
             // Normalize AQI to between 0..1.
             IObservable<double> aqiObservable = source
@@ -108,45 +108,45 @@ namespace Aether.Themes
                     float g = (float)(from.G + (to.G - from.G) * lerp);
                     float b = (float)(from.B + (to.B - from.B) * lerp);
 
-                    var rgb = new LinearRgb(r, g, b);
+                    // Update LEDs.
 
-                    // Update LEDs, if there's a change.
+                    rendererState.BaseColor = new LinearRgb(r, g, b);
+                    rendererState.FirstAlertPixelIdx = firstAlertPixelIdx;
 
-                    LedPixel color = display.CreatePixelColor(rgb, brightness: 0.05f);
+                    display.Draw(ref rendererState);
+                });
+        }
 
-                    if (color != prevColor || firstAlertPixelIdx != prevFirstAlertPixelIdx)
+        [StructLayout(LayoutKind.Auto)]
+        private struct RendererState : IRgbPixelRenderer
+        {
+            public LinearRgb BaseColor;
+            public int FirstAlertPixelIdx;
+
+            public readonly void Render<TPixel>(Span<TPixel> pixels)
+                where TPixel : struct, IRgbPixelFactory<TPixel>
+            {
+                TPixel basePixel = TPixel.Create(BaseColor, brightness: 2.0f / 31.0f);
+
+                pixels.Fill(basePixel);
+
+                if (FirstAlertPixelIdx >= 0)
+                {
+                    TPixel alertPixel = TPixel.Create(BaseColor, brightness: 1.0f);
+                    int nextAlertPixelIdx = FirstAlertPixelIdx;
+
+                    for (int i = 0; i < AlertPixelCount; ++i)
                     {
-                        prevColor = color;
-                        prevFirstAlertPixelIdx = firstAlertPixelIdx;
-
-                        // The entire string gets a base pixel color.
-
-                        pixels.AsSpan().Fill(color);
-
-                        // And then if an alert is happening, some are updated to be brighter.
-
-                        if (firstAlertPixelIdx != -1)
+                        while (nextAlertPixelIdx >= pixels.Length)
                         {
-                            LedPixel brightColor = display.CreatePixelColor(rgb, brightness: 1.0f);
-                            int idx = firstAlertPixelIdx;
-
-                            for (int i = 0; i < AlertPixelCount; ++i)
-                            {
-                                while (idx >= pixels.Length)
-                                {
-                                    idx -= pixels.Length;
-                                }
-
-                                pixels[idx] = brightColor;
-                                idx += AlertPixelStide;
-                            }
+                            nextAlertPixelIdx -= pixels.Length;
                         }
 
-                        // And finally display the pixel buffer.
-
-                        display.SetLeds(pixels);
+                        pixels[nextAlertPixelIdx] = alertPixel;
+                        nextAlertPixelIdx += AlertPixelStide;
                     }
-                });
+                }
+            }
         }
     }
 }
