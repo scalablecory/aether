@@ -194,8 +194,8 @@ namespace Aether.Themes
                         Measure.CO2 => measurement.Co2.PartsPerMillion.ToString("N0"),
                         Measure.BarometricPressure => measurement.BarometricPressure.Atmospheres.ToString("N2"),
                         Measure.VOC => measurement.Voc.Value.ToString("N0"),
-                        Measure.PM1_0 or Measure.PM2_5 or Measure.PM4_0 or Measure.PM10_0 => measurement.MassConcentration.MicrogramsPerCubicMeter.ToString("N0"),
-                        Measure.P0_5 or Measure.P1_0 or Measure.P2_5 or Measure.P4_0 or Measure.P10_0 => measurement.NumberConcentration.Value.ToString("N0"),
+                        Measure.PM1_0 or Measure.PM2_5 or Measure.PM4_0 or Measure.PM10_0 => Math.Min(measurement.MassConcentration.MicrogramsPerCubicMeter, 9999).ToString("N0"),
+                        Measure.P0_5 or Measure.P1_0 or Measure.P2_5 or Measure.P4_0 or Measure.P10_0 => Math.Min(measurement.NumberConcentration.Value, 9999).ToString("N0"),
                         Measure.TypicalParticleSize => measurement.Length.Micrometers.ToString("N1"),
                         Measure.AirQualityIndex => measurement.AirQualityIndex.Value.ToString("N0"),
                         _ => throw new Exception($"Unsupported measure '{measurement.Measure}'.")

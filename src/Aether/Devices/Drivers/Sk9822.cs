@@ -1,7 +1,5 @@
 ﻿using System.Device.Spi;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using SixLabors.ImageSharp.ColorSpaces;
 
 namespace Aether.Devices.Drivers
 {
@@ -82,34 +80,9 @@ namespace Aether.Devices.Drivers
         public void Flush() =>
             _device.Write(_buffer);
 
-        public override LedPixel CreatePixelColor(in LinearRgb rgb, float brightness)
+        public override void Draw<TRenderer>(ref TRenderer renderer)
         {
-            // Color correction taken from FastLED.
-            // Without this, the G/R channels are too strong.
-            // https://github.com/FastLED/FastLED
-
-            byte a = ToByte(brightness, 32.0f, 31.0f);
-            byte r = ToByte(rgb.R, 256.0f, 255.0f);
-            byte g = ToByte(rgb.G, 256.0f * 0.69f, 255.0f);
-            byte b = ToByte(rgb.B, 256.0f * 0.94f, 255.0f);
-
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            static byte ToByte(float x, float scale, float max) =>
-                (byte)Math.Clamp(x * scale, 0.0f, max);
-
-            return new LedPixel(a, r, g, b);
-        }
-
-        public override void SetLeds(ReadOnlySpan<LedPixel> pixels)
-        {
-            Span<Sk9822Pixel> dstPixels = Pixels.Slice(0, pixels.Length);
-
-            for (int i = 0; i < pixels.Length; ++i)
-            {
-                ref readonly LedPixel src = ref pixels[i];
-                dstPixels[i] = new Sk9822Pixel(src.Brightness, src.R, src.G, src.B);
-            }
-
+            renderer.Render(Pixels);
             Flush();
         }
     }
