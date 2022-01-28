@@ -1,90 +1,75 @@
-﻿using Aether.Devices.Sensors.Metadata;
+﻿using System.Device.I2c;
+using System.Reactive.Linq;
+using Aether.Devices.Sensors.Metadata;
 using Aether.Reactive;
 using Iot.Device.Scd4x;
-using System.Device.I2c;
-using System.Reactive.Linq;
 using UnitsNet;
 
 namespace Aether.Devices.Sensors
 {
-    internal class ObservableScd4x : ObservableSensor, IObservableI2cSensorFactory
+    internal sealed class ObservableScd4x : I2cSensorFactory
     {
-        private readonly Scd4x _sensor;
-        private readonly IObservable<Measurement> _dependencies;
+        public static ObservableScd4x Instance { get; } = new ObservableScd4x();
 
-        private ObservableScd4x(I2cDevice device, IObservable<Measurement> dependencies)
-        {
-            _sensor = new Scd4x(device);
-            _dependencies = dependencies;
-            Start();
-        }
+        public override int DefaultAddress => Scd4x.DefaultI2cAddress;
 
-        protected override void DisposeCore() =>
-            _sensor.Dispose();
+        public override string Manufacturer => "Sensirion";
 
-        protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
-        {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-            using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
+        public override string Name => "SCD4x";
 
-            var pressureObserver = new ObservedValue<Pressure>();
-            using IDisposable pressureSubscription = _dependencies
-                .Where(m => m.Measure == Measure.BarometricPressure)
-                .Select(m => m.BarometricPressure)
-                .Subscribe(pressureObserver);
+        public override string Uri => "https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors/carbon-dioxide-sensor-scd4x/";
 
-            _sensor.StartPeriodicMeasurements();
-            try
-            {
-                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
-                {
-                    (VolumeConcentration? co2, RelativeHumidity? humidity, Temperature? temperature) =
-                        await _sensor.ReadPeriodicMeasurementAsync().ConfigureAwait(false);
-
-                    if (co2 is not null) OnNextCo2(co2.GetValueOrDefault());
-                    if (humidity is not null) OnNextRelativeHumidity(humidity.GetValueOrDefault());
-                    if (temperature is not null) OnNextTemperature(temperature.GetValueOrDefault());
-
-                    if (pressureObserver.TryGetValueIfChanged(out Pressure pressure))
-                    {
-                        _sensor.SetPressureCalibration(pressure);
-                    }
-                }
-            }
-            finally
-            {
-                _sensor.StopPeriodicMeasurements();
-            }
-        }
-
-        #region IObservableI2CSensorFactory
-
-        public static int DefaultAddress => Scd4x.DefaultI2cAddress;
-
-        public static string Manufacturer => "Sensirion";
-
-        public static string Name => "SCD4x";
-
-        public static string Uri => "https://www.sensirion.com/en/environmental-sensors/carbon-dioxide-sensors/carbon-dioxide-sensor-scd4x/";
-
-        public static IEnumerable<MeasureInfo> Measures { get; } = new[]
+        public override IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
             new MeasureInfo(Measure.CO2),
             new MeasureInfo(Measure.Humidity),
             new MeasureInfo(Measure.Temperature)
         };
 
-        public static IEnumerable<SensorDependency> Dependencies => new[]
+        public override IEnumerable<SensorDependency> Dependencies => new[]
         {
             new SensorDependency(Measure.BarometricPressure, required: false)
         };
 
         // TODO: self-calibration command.
-        public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
+        public override IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) =>
-            new ObservableScd4x(device, dependencies);
+        public override IObservable<Measurement> OpenSensor(Func<I2cDevice> deviceFunc, IObservable<Measurement> dependencies) =>
+            Observable.Create(async (IObserver<Measurement> measurements, CancellationToken cancellationToken) =>
+            {
+                using I2cDevice device = deviceFunc();
+                using var sensor = new Scd4x(device);
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+                using CancellationTokenRegistration registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
 
-        #endregion
+                var pressureObserver = new ObservedValue<Pressure>();
+                using IDisposable pressureSubscription = dependencies
+                    .Where(m => m.Measure == Measure.BarometricPressure)
+                    .Select(m => m.BarometricPressure)
+                    .Subscribe(pressureObserver);
+
+                sensor.StartPeriodicMeasurements();
+                try
+                {
+                    while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
+                    {
+                        (VolumeConcentration? co2, RelativeHumidity? humidity, Temperature? temperature) =
+                            await sensor.ReadPeriodicMeasurementAsync().ConfigureAwait(false);
+
+                        if (co2 is not null) measurements.OnNext(Measurement.FromCo2(co2.GetValueOrDefault()));
+                        if (humidity is not null) measurements.OnNext(Measurement.FromRelativeHumidity(humidity.GetValueOrDefault()));
+                        if (temperature is not null) measurements.OnNext(Measurement.FromTemperature(temperature.GetValueOrDefault()));
+
+                        if (pressureObserver.TryGetValueIfChanged(out Pressure pressure))
+                        {
+                            sensor.SetPressureCalibration(pressure);
+                        }
+                    }
+                }
+                finally
+                {
+                    sensor.StopPeriodicMeasurements();
+                }
+            });
     }
 }

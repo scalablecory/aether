@@ -1,60 +1,48 @@
 ﻿using Aether.Devices.Sensors.Metadata;
 using Iot.Device.Sht4x;
 using System.Device.I2c;
+using System.Reactive.Linq;
 using UnitsNet;
 
 namespace Aether.Devices.Sensors
 {
-    internal sealed class ObservableSht4x : ObservableSensor, IObservableI2cSensorFactory
+    internal sealed class ObservableSht4x : I2cSensorFactory
     {
-        private readonly Sht4x _sensor;
+        public static ObservableSht4x Instance { get; } = new ObservableSht4x();
 
-        private ObservableSht4x(I2cDevice device)
-        {
-            _sensor = new Sht4x(device);
-            Start();
-        }
+        public override int DefaultAddress => Sht4x.DefaultI2cAddress;
 
-        protected override void DisposeCore() =>
-            _sensor.Dispose();
+        public override string Manufacturer => "Sensirion";
 
-        protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
-        {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
-            using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
+        public override string Name => "SHT4x";
 
-            while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
-            {
-                (RelativeHumidity? humidity, Temperature? temperature) =
-                    await _sensor.ReadHumidityAndTemperatureAsync().ConfigureAwait(false);
+        public override string Uri => "https://www.sensirion.com/en/environmental-sensors/humidity-sensors/humidity-sensor-sht4x/";
 
-                if (humidity is not null) OnNextRelativeHumidity(humidity.GetValueOrDefault());
-                if (temperature is not null) OnNextTemperature(temperature.GetValueOrDefault());
-            }
-        }
-
-        #region IObservableI2CSensorFactory
-
-        public static int DefaultAddress => Sht4x.DefaultI2cAddress;
-
-        public static string Manufacturer => "Sensirion";
-
-        public static string Name => "SHT4x";
-
-        public static string Uri => "https://www.sensirion.com/en/environmental-sensors/humidity-sensors/humidity-sensor-sht4x/";
-
-        public static IEnumerable<MeasureInfo> Measures { get; } = new[]
+        public override IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
             new MeasureInfo(Measure.Humidity),
             new MeasureInfo(Measure.Temperature)
         };
 
-        public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
-        public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
+        public override IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
+        public override IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) =>
-            new ObservableSht4x(device);
+        public override IObservable<Measurement> OpenSensor(Func<I2cDevice> deviceFunc, IObservable<Measurement> dependencies) =>
+            Observable.Create(async (IObserver<Measurement> measurements, CancellationToken cancellationToken) =>
+            {
+                using I2cDevice device = deviceFunc();
+                using var sensor = new Sht4x(device);
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+                using CancellationTokenRegistration registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
 
-        #endregion
+                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
+                {
+                    (RelativeHumidity? humidity, Temperature? temperature) =
+                        await sensor.ReadHumidityAndTemperatureAsync().ConfigureAwait(false);
+
+                    if (humidity is not null) measurements.OnNext(Measurement.FromRelativeHumidity(humidity.GetValueOrDefault()));
+                    if (temperature is not null) measurements.OnNext(Measurement.FromTemperature(temperature.GetValueOrDefault()));
+                }
+            });
     }
 }

@@ -15,9 +15,9 @@ namespace Aether.Themes
 
         private const double AlertAqiChangeThreshold = 0.2;
         private const double AlertAnimationLengthInSeconds = 2.0;
-        private const int AlertPixelCount = 1;
+        private const int AlertPixelCount = 2;
         private const int AlertPixelStide = 1;
-        private const double AlertPixelMovementPerSecond = 15.0;
+        private const double AlertPixelMovementPerSecond = 30.0;
 
         public static IDisposable Run(AddressableRgbDriver display, IObservable<Measurement> source)
         {
@@ -126,7 +126,7 @@ namespace Aether.Themes
             public readonly void Render<TPixel>(Span<TPixel> pixels)
                 where TPixel : struct, IRgbPixelFactory<TPixel>
             {
-                TPixel basePixel = TPixel.Create(BaseColor, brightness: 2.0f / 31.0f);
+                TPixel basePixel = TPixel.Create(BaseColor, brightness: 1.0f / 31.0f);
 
                 pixels.Fill(basePixel);
 

@@ -21,30 +21,37 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     using I2cBus bus = I2cBus.Create(busId: 1);
 
     // Initialize SPS30.
-    // TODO: For some reason the SPS30 fails to start if it's not the first driver to write to the bus.
-    using I2cDevice sps30Device = bus.CreateDevice(ObservableSps30.DefaultAddress);
-    await using ObservableSensor spsDriver = ObservableSps30.OpenSensor(sps30Device, dependencies: Observable.Empty<Measurement>());
+    // TODO: For some reason the SPS30 fails to start if it's not the first driver to write to the bus,
+    // so it is published and connected here.
+    IConnectableObservable<Measurement> sps30Measurements = ObservableSps30.Instance.OpenSensor(
+        () => bus.CreateDevice(ObservableSps30.Instance.DefaultAddress),
+        dependencies: Observable.Empty<Measurement>()).Retry().Publish();
+    using IDisposable sps30Connection = sps30Measurements.Connect();
 
     // Initialize MS5637.
-    using I2cDevice ms5637Device = bus.CreateDevice(ObservableMs5637.DefaultAddress);
-    await using ObservableSensor ms5637Driver = ObservableMs5637.OpenSensor(ms5637Device, dependencies: Observable.Empty<Measurement>());
+    // Ref count, as this will be used as a dependency.
+    IObservable<Measurement> ms5637Measurements = ObservableMs5637.Instance.OpenSensor(
+        () => bus.CreateDevice(ObservableMs5637.Instance.DefaultAddress),
+        dependencies: Observable.Empty<Measurement>()).Retry().Publish().RefCount();
 
     // Initialize SCD4x, taking a dependency on MS5637 for calibration with barometric pressure.
-    using I2cDevice scd4xDevice = bus.CreateDevice(ObservableScd4x.DefaultAddress);
-    await using ObservableSensor scdDriver = ObservableScd4x.OpenSensor(scd4xDevice, dependencies: ms5637Driver);
+    // Ref count, as this will be used as a dependency.
+    IObservable<Measurement> scd4xMeasurements = ObservableScd4x.Instance.OpenSensor(
+        () => bus.CreateDevice(ObservableScd4x.Instance.DefaultAddress),
+        dependencies: ms5637Measurements).Retry().Publish().RefCount();
 
     // Initialize SGP4x, taking a dependency on SCD4x for temperature and relative humidity.
-    using I2cDevice sgp4xDevice = bus.CreateDevice(ObservableSgp4x.DefaultAddress);
-    await using ObservableSensor sgpDriver = ObservableSgp4x.OpenSensor(sgp4xDevice, dependencies: scdDriver);
+    IObservable<Measurement> sgp4xMeasurements = ObservableSgp4x.Instance.OpenSensor(
+        () => bus.CreateDevice(ObservableSgp4x.Instance.DefaultAddress),
+        dependencies: scd4xMeasurements).Retry();
 
     // All the measurements funnel through here.
     // Multiple sensors can support the same measures. In this case, the MS5637 and SCD4x both support temperature. To prevent inconsistencies, only use one.
     IObservable<Measurement> measurements = Observable.Merge(
-        ms5637Driver.Where(x => x.Measure == Measure.BarometricPressure),
-        scdDriver,
-        sgpDriver,
-        spsDriver
-        );
+        sps30Measurements,
+        ms5637Measurements.Where(x => x.Measure == Measure.BarometricPressure),
+        scd4xMeasurements,
+        sgp4xMeasurements).Publish().RefCount();
 
     // Add a derived AQI.
     measurements = Observable.Merge(
@@ -73,7 +80,7 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
         ClockFrequency = 30_000_000
     };
     using SpiDevice rgbDevice = SpiDevice.Create(spiConfig);
-    using var rgbDriver = new Sk9822(rgbDevice, pixelCount: 22);
+    using var rgbDriver = new Sk9822(rgbDevice, pixelCount: 44);
 
     // Initialize RGB theme, which takes all the measurements and converts them to an RGB color for LEDs.
     using IDisposable rgbTheme = RgbTheme.Run(rgbDriver, measurements);
@@ -96,15 +103,15 @@ var listSensorCommand = new Command("list", "Lists available sensors")
 {
     Handler = CommandHandler.Create(() =>
     {
-        foreach (SensorInfo sensorInfo in SensorInfo.Sensors)
+        foreach (SensorFactory sensorFactory in SensorFactory.Sensors)
         {
-            string type = sensorInfo switch
+            string type = sensorFactory switch
             {
-                I2cSensorInfo i2c => $"i2c({i2c.DefaultAddress})",
-                _ => throw new Exception($"Unknown {nameof(SensorInfo)} subclass.")
+                I2cSensorFactory i2c => $"i2c({i2c.DefaultAddress})",
+                _ => throw new Exception($"Unknown {nameof(SensorFactory)} subclass.")
             };
 
-            Console.WriteLine($"{type}{(sensorInfo.CanSimulateSensor ? " / simulatable" : "              ")} - {sensorInfo.Name} - {string.Join(", ", sensorInfo.Measures)}");
+            Console.WriteLine($"{type}{(sensorFactory.CanSimulate ? " / simulatable" : "              ")} - {sensorFactory.Name} - {string.Join(", ", sensorFactory.Measures)}");
         }
     })
 };
@@ -116,29 +123,32 @@ var testi2cSensorCommand = new Command("i2c", "Tests an I2C sensor")
     new Argument<uint>("address", "The I2C address to use.")
 };
 
-testi2cSensorCommand.Handler = CommandHandler.Create((string name, uint bus, uint address) => RunAndPrintSensorAsync(() =>
+testi2cSensorCommand.Handler = CommandHandler.Create(async (string name, uint bus, uint address) =>
 {
-    SensorInfo? sensorInfo = SensorInfo.Sensors.FirstOrDefault(x => x is I2cSensorInfo && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+    SensorFactory? sensorInfo = SensorFactory.Sensors.FirstOrDefault(x => x is I2cSensorFactory && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
-    return sensorInfo switch
+    IObservable<Measurement> measurements = sensorInfo switch
     {
-        I2cSensorInfo i2c => i2c.OpenDevice((int)bus, (int)address, Observable.Empty<Measurement>()),
+        I2cSensorFactory i2c => i2c.OpenSensor((int)bus, (int)address, Observable.Empty<Measurement>()),
         _ => throw new Exception("An I2C sensor by that name was not found.")
     };
-}));
+
+    await RunAndPrintSensorAsync(measurements);
+});
 
 var simulateSensorCommand = new Command("simulate", "Simulates a sensor")
 {
     new Argument<string>("name", "The name of the sensor to test.")
 };
 
-simulateSensorCommand.Handler = CommandHandler.Create((string name) => RunAndPrintSensorAsync(() =>
+simulateSensorCommand.Handler = CommandHandler.Create(async (string name) =>
 {
-    SensorInfo sensorInfo = SensorInfo.Sensors.FirstOrDefault(x => x is I2cSensorInfo { CanSimulateSensor: true } && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
+    SensorFactory sensorInfo = SensorFactory.Sensors.FirstOrDefault(x => x is I2cSensorFactory { CanSimulate: true } && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
         ?? throw new Exception("A simulatable sensor by that name was not found.");
 
-    return sensorInfo.CreateSimulatedSensor(Observable.Empty<Measurement>());
-}));
+    IObservable<Measurement> measurements = sensorInfo.OpenSimulatedSensor(Observable.Empty<Measurement>());
+    await RunAndPrintSensorAsync(measurements);
+});
 
 // Temporary command to test the theme.
 // TODO: Make this more like a list/test format similar to sensor.
@@ -241,8 +251,8 @@ var rootCommand = new RootCommand()
 
 await rootCommand.InvokeAsync(Environment.CommandLine);
 
-static Task RunAndPrintSensorAsync(Func<ObservableSensor> sensorFunc) =>
-    AetherObservable.AsyncUsing(sensorFunc, sensor => sensor)
+static Task RunAndPrintSensorAsync(IObservable<Measurement> measurements) =>
+    measurements
     .TakeUntil(AetherObservable.ConsoleCancelKeyPress)
     .ForEachAsync(measurement =>
     {
