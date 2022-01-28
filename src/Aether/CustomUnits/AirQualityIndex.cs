@@ -30,6 +30,7 @@ namespace Aether.CustomUnits
 
         public double Value { get; }
 
+        [Obsolete]
         public QuantityType Type =>
             QuantityType.Information;
 

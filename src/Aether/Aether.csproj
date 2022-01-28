@@ -12,15 +12,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Iot.Device.Bindings" Version="2.0.0-prerelease.21574.2" />
+    <PackageReference Include="Iot.Device.Bindings" Version="2.0.0" />
     <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta15" />
     <PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta13" />
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta1.21473.1" />
-    <PackageReference Include="System.Device.Gpio" Version="2.0.0-prerelease.21574.2" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta2.21617.1" />
+    <PackageReference Include="System.Device.Gpio" Version="2.0.0" />
     <PackageReference Include="System.Reactive" Version="5.0.0" />
     <PackageReference Include="System.Runtime.Experimental" Version="6.0.0" />
-    <PackageReference Include="UnitsNet" Version="4.110.0" />
+    <PackageReference Include="UnitsNet" Version="4.115.0" />
   </ItemGroup>
 
   <ItemGroup>

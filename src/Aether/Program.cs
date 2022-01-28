@@ -1,5 +1,4 @@
 ﻿using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Device.Gpio;
 using System.Device.I2c;
 using System.Device.Spi;
@@ -7,7 +6,6 @@ using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using Aether.Devices.Drivers;
 using Aether.Devices.Sensors;
-using Aether.Devices.Sensors.Metadata;
 using Aether.Devices.Simulated;
 using Aether.Reactive;
 using Aether.Themes;
@@ -16,7 +14,7 @@ using UnitsNet;
 // TODO: this needs to be replaced by something that reads config, resolves dependencies, etc.
 var runDeviceCommand = new Command("run-device", "Runs an Aether device");
 
-runDeviceCommand.Handler = CommandHandler.Create(async () =>
+runDeviceCommand.SetHandler(async () =>
 {
     using I2cBus bus = I2cBus.Create(busId: 1);
 
@@ -99,22 +97,20 @@ runDeviceCommand.Handler = CommandHandler.Create(async () =>
     await tcs.Task;
 });
 
-var listSensorCommand = new Command("list", "Lists available sensors")
+var listSensorCommand = new Command("list", "Lists available sensors");
+listSensorCommand.SetHandler(() =>
 {
-    Handler = CommandHandler.Create(() =>
+    foreach (SensorFactory sensorFactory in SensorFactory.Sensors)
     {
-        foreach (SensorFactory sensorFactory in SensorFactory.Sensors)
+        string type = sensorFactory switch
         {
-            string type = sensorFactory switch
-            {
-                I2cSensorFactory i2c => $"i2c({i2c.DefaultAddress})",
-                _ => throw new Exception($"Unknown {nameof(SensorFactory)} subclass.")
-            };
+            I2cSensorFactory i2c => $"i2c({i2c.DefaultAddress})",
+            _ => throw new Exception($"Unknown {nameof(SensorFactory)} subclass.")
+        };
 
-            Console.WriteLine($"{type}{(sensorFactory.CanSimulate ? " / simulatable" : "              ")} - {sensorFactory.Name} - {string.Join(", ", sensorFactory.Measures)}");
-        }
-    })
-};
+        Console.WriteLine($"{type}{(sensorFactory.CanSimulate ? " / simulatable" : "              ")} - {sensorFactory.Name} - {string.Join(", ", sensorFactory.Measures)}");
+    }
+});
 
 var testi2cSensorCommand = new Command("i2c", "Tests an I2C sensor")
 {
@@ -123,7 +119,7 @@ var testi2cSensorCommand = new Command("i2c", "Tests an I2C sensor")
     new Argument<uint>("address", "The I2C address to use.")
 };
 
-testi2cSensorCommand.Handler = CommandHandler.Create(async (string name, uint bus, uint address) =>
+testi2cSensorCommand.SetHandler(async (string name, uint bus, uint address) =>
 {
     SensorFactory? sensorInfo = SensorFactory.Sensors.FirstOrDefault(x => x is I2cSensorFactory && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
 
@@ -141,7 +137,7 @@ var simulateSensorCommand = new Command("simulate", "Simulates a sensor")
     new Argument<string>("name", "The name of the sensor to test.")
 };
 
-simulateSensorCommand.Handler = CommandHandler.Create(async (string name) =>
+simulateSensorCommand.SetHandler(async (string name) =>
 {
     SensorFactory sensorInfo = SensorFactory.Sensors.FirstOrDefault(x => x is I2cSensorFactory { CanSimulate: true } && string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase))
         ?? throw new Exception("A simulatable sensor by that name was not found.");
@@ -153,7 +149,7 @@ simulateSensorCommand.Handler = CommandHandler.Create(async (string name) =>
 // Temporary command to test the theme.
 // TODO: Make this more like a list/test format similar to sensor.
 var themeTestCommand = new Command("theme-test", "Tests a theme.");
-themeTestCommand.Handler = CommandHandler.Create(() =>
+themeTestCommand.SetHandler(() =>
 {
     var lines = new[] { Measure.CO2, Measure.Humidity, Measure.BarometricPressure, Measure.Temperature, Measure.PM2_5, Measure.PM10_0 };
 
@@ -174,7 +170,7 @@ themeTestCommand.Handler = CommandHandler.Create(() =>
 // Temporary command to test the display.
 // TODO: Make this more like a list/test format similar to sensor.
 var rgbTestCommand = new Command("rgb-test", "Tests RGB.");
-rgbTestCommand.Handler = CommandHandler.Create(async () =>
+rgbTestCommand.SetHandler(async () =>
 {
     var spiConfig = new System.Device.Spi.SpiConnectionSettings(6)
     {
@@ -209,7 +205,7 @@ rgbTestCommand.Handler = CommandHandler.Create(async () =>
 // Temporary command to test the display.
 // TODO: Make this more like a list/test format similar to sensor.
 var displayTestCommand = new Command("display-test", "Tests a display.");
-displayTestCommand.Handler = CommandHandler.Create(() =>
+displayTestCommand.SetHandler(() =>
 {
     var spiConfig = new System.Device.Spi.SpiConnectionSettings(0, 0)
     {
