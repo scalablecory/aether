@@ -5,9 +5,10 @@
     <TargetFramework>net6.0</TargetFramework>
     <AllowUnsafeBlocks>yes</AllowUnsafeBlocks>
     <Nullable>enable</Nullable>
-    <EnablePreviewFeatures>true</EnablePreviewFeatures>
-    <LangVersion>preview</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
+    <EnablePreviewFeatures>True</EnablePreviewFeatures>
+    <GenerateRequiresPreviewFeaturesAttribute>True</GenerateRequiresPreviewFeaturesAttribute>
+    <LangVersion>preview</LangVersion>
   </PropertyGroup>
 
   <ItemGroup>

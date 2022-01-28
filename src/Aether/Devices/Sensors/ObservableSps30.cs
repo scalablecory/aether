@@ -1,28 +1,23 @@
 ﻿using System.Device.I2c;
+using System.Reactive.Linq;
 using Aether.Devices.Drivers;
 using Aether.Devices.Sensors.Metadata;
 
 namespace Aether.Devices.Sensors
 {
-    internal class ObservableSps30 : ObservableSensor, IObservableI2cSensorFactory
+    internal sealed class ObservableSps30 : I2cSensorFactory
     {
-        private readonly Sps30 _sensor;
+        public static ObservableSps30 Instance { get; } = new ObservableSps30();
 
-        private ObservableSps30(I2cDevice device)
-        {
-            _sensor = new Sps30(device);
-            Start();
-        }
+        public override int DefaultAddress => Sps30.DefaultI2cAddress;
 
-        public static int DefaultAddress => Sps30.DefaultI2cAddress;
+        public override string Manufacturer => "Sensirion";
 
-        public static string Manufacturer => "Sensirion";
+        public override string Name => "SPS30";
 
-        public static string Name => "SPS30";
+        public override string Uri => "https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/";
 
-        public static string Uri => "https://www.sensirion.com/en/environmental-sensors/particulate-matter-sensors-pm25/";
-
-        public static IEnumerable<MeasureInfo> Measures { get; } = new[]
+        public override IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
             new MeasureInfo(Measure.PM1_0),
             new MeasureInfo(Measure.PM2_5),
@@ -36,67 +31,46 @@ namespace Aether.Devices.Sensors
             new MeasureInfo(Measure.TypicalParticleSize)
         };
 
-        public static IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
-        public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
+        public override IEnumerable<SensorDependency> Dependencies => SensorDependency.NoDependencies;
+        public override IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) => new ObservableSps30(device);
-
-        protected override void DisposeCore() => _sensor.Dispose();
-
-        protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
-        {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-            using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
-
-            _sensor.StartMeasurement();
-
-            try
+        public override IObservable<Measurement> OpenSensor(Func<I2cDevice> deviceFunc, IObservable<Measurement> dependencies) =>
+            Observable.Create(async (IObserver<Measurement> measurements, CancellationToken cancellationToken) =>
             {
-                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
+                using I2cDevice device = deviceFunc();
+                using var sensor = new Sps30(device);
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+                using CancellationTokenRegistration registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
+
+                sensor.StartMeasurement();
+
+                try
                 {
-                    bool? sensorDataReady = _sensor.CheckSensorDataReady();
-
-                    if(sensorDataReady is not null && sensorDataReady.Value)
+                    while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
                     {
-                        Sps30ParticulateData particulateData = _sensor.ReadMeasuredValues();
+                        bool? sensorDataReady = sensor.CheckSensorDataReady();
 
-                        if (particulateData.PM1_0 is not null)
-                            OnNextPM1_0(particulateData.PM1_0.Value);
+                        if (sensorDataReady is not null && sensorDataReady.Value)
+                        {
+                            Sps30ParticulateData particulateData = sensor.ReadMeasuredValues();
 
-                        if (particulateData.PM2_5 is not null)
-                            OnNextPM2_5(particulateData.PM2_5.Value);
-
-                        if (particulateData.PM4_0 is not null)
-                            OnNextPM4_0(particulateData.PM4_0.Value);
-
-                        if (particulateData.PM10_0 is not null)
-                            OnNextPM10_0(particulateData.PM10_0.Value);
-
-                        if (particulateData.P0_5 is not null)
-                            OnNextP0_5(particulateData.P0_5.Value);
-
-                        if (particulateData.P1_0 is not null)
-                            OnNextP1_0(particulateData.P1_0.Value);
-
-                        if (particulateData.P2_5 is not null)
-                            OnNextP2_5(particulateData.P2_5.Value);
-
-                        if (particulateData.P4_0 is not null)
-                            OnNextP4_0(particulateData.P4_0.Value);
-
-                        if (particulateData.P10_0 is not null)
-                            OnNextP10_0(particulateData.P10_0.Value);
-
-                        if (particulateData.TypicalParticleSize is not null)
-                            OnNextTypicalParticleSize(particulateData.TypicalParticleSize.Value);
+                            if (particulateData.PM1_0 is not null) measurements.OnNext(Measurement.FromPM1_0(particulateData.PM1_0.GetValueOrDefault()));
+                            if (particulateData.PM2_5 is not null) measurements.OnNext(Measurement.FromPM2_5(particulateData.PM2_5.GetValueOrDefault()));
+                            if (particulateData.PM4_0 is not null) measurements.OnNext(Measurement.FromPM4_0(particulateData.PM4_0.GetValueOrDefault()));
+                            if (particulateData.PM10_0 is not null) measurements.OnNext(Measurement.FromPM10_0(particulateData.PM10_0.GetValueOrDefault()));
+                            if (particulateData.P0_5 is not null) measurements.OnNext(Measurement.FromP0_5(particulateData.P0_5.GetValueOrDefault()));
+                            if (particulateData.P1_0 is not null) measurements.OnNext(Measurement.FromP1_0(particulateData.P1_0.GetValueOrDefault()));
+                            if (particulateData.P2_5 is not null) measurements.OnNext(Measurement.FromP2_5(particulateData.P2_5.GetValueOrDefault()));
+                            if (particulateData.P4_0 is not null) measurements.OnNext(Measurement.FromP4_0(particulateData.P4_0.GetValueOrDefault()));
+                            if (particulateData.P10_0 is not null) measurements.OnNext(Measurement.FromP10_0(particulateData.P10_0.GetValueOrDefault()));
+                            if (particulateData.TypicalParticleSize is not null) measurements.OnNext(Measurement.FromTypicalParticleSize(particulateData.TypicalParticleSize.GetValueOrDefault()));
+                        }
                     }
-                    
                 }
-            }
-            finally
-            {
-                _sensor.StopMeasurement();
-            }
-        }
+                finally
+                {
+                    sensor.StopMeasurement();
+                }
+            });
     }
 }

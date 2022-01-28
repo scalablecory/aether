@@ -1,85 +1,76 @@
-﻿using Aether.CustomUnits;
+﻿using System.Device.I2c;
+using System.Reactive.Linq;
+using Aether.CustomUnits;
 using Aether.Devices.Sensors.Metadata;
 using Aether.Reactive;
-using System.Device.I2c;
-using System.Reactive.Linq;
 using UnitsNet;
 
 namespace Aether.Devices.Sensors
 {
-    internal class ObservableSgp4x : ObservableSensor, IObservableI2cSensorFactory
+    internal sealed class ObservableSgp4x : I2cSensorFactory
     {
-        private readonly Drivers.Sgp4x _sensor;
-        private readonly IObservable<Measurement> _dependencies;
+        public static ObservableSgp4x Instance { get; } = new ObservableSgp4x();
 
-        private ObservableSgp4x(I2cDevice device, IObservable<Measurement> dependencies)
-        {
-            _sensor = new Drivers.Sgp4x(device);
-            _dependencies = dependencies;
-            Start();
-        }
+        public override int DefaultAddress => Drivers.Sgp4x.DefaultI2cAddress;
 
-        public static int DefaultAddress => Drivers.Sgp4x.DefaultI2cAddress;
+        public override string Manufacturer => "Sensirion";
 
-        public static string Manufacturer => "Sensirion";
+        public override string Name => "SGP4x";
 
-        public static string Name => "SGP4x";
+        public override string Uri => "https://www.sensirion.com/en/environmental-sensors/gas-sensors/sgp40/";
 
-        public static string Uri => "https://www.sensirion.com/en/environmental-sensors/gas-sensors/sgp40/";
-
-        public static IEnumerable<MeasureInfo> Measures { get; } = new[]
+        public override IEnumerable<MeasureInfo> Measures { get; } = new[]
         {
             new MeasureInfo(Measure.VOC)
         };
 
-        public static IEnumerable<SensorDependency> Dependencies => new[]
+        public override IEnumerable<SensorDependency> Dependencies { get; } = new[]
         {
             new SensorDependency(Measure.Temperature, required: false),
             new SensorDependency(Measure.Humidity, required: false)
         };
 
-        public static IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
+        public override IEnumerable<SensorCommand> Commands => SensorCommand.NoCommands;
 
-        public static ObservableSensor OpenSensor(I2cDevice device, IObservable<Measurement> dependencies) => new ObservableSgp4x(device, dependencies);
-
-        protected override void DisposeCore() => _sensor.Dispose();
-
-        protected override async Task ProcessLoopAsync(CancellationToken cancellationToken)
-        {
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-            using var registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
-
-            var humidityObserver = new ObservedValue<RelativeHumidity>();
-            using IDisposable humididtySubscription = _dependencies
-                .Where(m => m.Measure == Measure.Humidity)
-                .Select(m => m.RelativeHumidity)
-                .Subscribe(humidityObserver);
-
-            var temperatureObserver = new ObservedValue<Temperature>();
-            using IDisposable temperatureSubscription = _dependencies
-                .Where(m => m.Measure == Measure.Temperature)
-                .Select(m => m.Temperature)
-                .Subscribe(temperatureObserver);
-
-            while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
+        public override IObservable<Measurement> OpenSensor(Func<I2cDevice> deviceFunc, IObservable<Measurement> dependencies) =>
+            Observable.Create(async (IObserver<Measurement> measurements, CancellationToken cancellationToken) =>
             {
-                VolatileOrganicCompoundIndex? vocIndex = null;
+                using I2cDevice device = deviceFunc();
+                using var sensor = new Drivers.Sgp4x(device);
+                using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+                using CancellationTokenRegistration registration = cancellationToken.UnsafeRegister(static @timer => ((PeriodicTimer)@timer!).Dispose(), timer);
 
-                if (humidityObserver.TryGetValue(out RelativeHumidity relativeHumidity) &&
-                    temperatureObserver.TryGetValue(out Temperature temperature))
-                {
-                    vocIndex = _sensor.ReadVocMeasurement(relativeHumidity, temperature);
-                }
-                else
-                {
-                    vocIndex = _sensor.ReadVocMeasurement();
-                }
+                var humidityObserver = new ObservedValue<RelativeHumidity>();
+                using IDisposable humididtySubscription = dependencies
+                    .Where(m => m.Measure == Measure.Humidity)
+                    .Select(m => m.RelativeHumidity)
+                    .Subscribe(humidityObserver);
 
-                if (vocIndex is not null)
+                var temperatureObserver = new ObservedValue<Temperature>();
+                using IDisposable temperatureSubscription = dependencies
+                    .Where(m => m.Measure == Measure.Temperature)
+                    .Select(m => m.Temperature)
+                    .Subscribe(temperatureObserver);
+
+                while (await timer.WaitForNextTickAsync().ConfigureAwait(false))
                 {
-                    OnNextVolitileOrganicCompound(vocIndex.Value);
+                    VolatileOrganicCompoundIndex? vocIndex;
+
+                    if (humidityObserver.TryGetValue(out RelativeHumidity relativeHumidity) &&
+                        temperatureObserver.TryGetValue(out Temperature temperature))
+                    {
+                        vocIndex = sensor.ReadVocMeasurement(relativeHumidity, temperature);
+                    }
+                    else
+                    {
+                        vocIndex = sensor.ReadVocMeasurement();
+                    }
+
+                    if (vocIndex is not null)
+                    {
+                        measurements.OnNext(Measurement.FromVoc(vocIndex.GetValueOrDefault()));
+                    }
                 }
-            }
-        }
+            });
     }
 }
